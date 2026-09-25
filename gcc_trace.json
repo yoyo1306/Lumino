@@ -1,0 +1,16 @@
+[
+  {
+    "proc": 12084,
+    "fn": "CreateFileW",
+    "path": "C:\\Program Files\\GIGABYTE\\Control Center\\GvProfile\\41E20_GLeds_Profile 1.dat",
+    "h": "0x11f4",
+    "t": 1789770105097
+  },
+  {
+    "proc": 12084,
+    "fn": "CreateFileW",
+    "path": "C:\\Program Files\\GIGABYTE\\Control Center\\GvProfile\\41E20_GLeds.dat",
+    "h": "0x11f4",
+    "t": 1789770105097
+  }
+]

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# PyInstaller
+build/
+dist/
+*.spec
+Lumino.exe
+LuminoDbg*
+
+# Lumino local (couleurs perso + logs, pas dans git)
+config.json
+lumino.log
+apply_watch.json
+
+# Restes du reverse GCC (33 Mo de DLL, inutiles au quotidien)
+vendor/

@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumino</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --ink: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #111827;
+    --accent-ink: #fff;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px -12px rgba(16,24,40,.15);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* header */
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 36px; height: 36px; border-radius: 12px; background: #111827; color: #fff;
+    display: grid; place-items: center; font-weight: 800; font-size: 18px; letter-spacing: -.5px; }
+  .brand h1 { font-size: 20px; margin: 0; letter-spacing: -.3px; }
+  .brand small { display: block; color: var(--muted); font-weight: 400; font-size: 12.5px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; box-shadow: var(--shadow); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; }
+  .pill.ok .dot { background: #16a34a; }
+  .pill.ko .dot { background: #dc2626; }
+
+  /* cards */
+  .hero, .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 20px; }
+  .hero { margin-bottom: 16px; border-top: 4px solid #111827; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 820px) { .grid { grid-template-columns: 1fr 1fr 1fr; } .grid .card { display: flex; flex-direction: column; } }
+  .card h2, .hero h2 { font-size: 15px; margin: 0 0 2px; }
+  .desc { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .row { display: flex; gap: 12px; align-items: center; }
+  .grow { flex: 1; min-width: 0; }
+  label.lbl { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 6px; }
+  label.lbl b { color: var(--ink); font-weight: 700; }
+
+  input[type=color] { width: 52px; height: 40px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; padding: 3px; cursor: pointer; }
+  input[type=range] { width: 100%; accent-color: #111827; height: 28px; }
+
+  .preview { height: 44px; border-radius: 12px; border: 1px solid var(--line); margin: 12px 0; transition: background .15s, opacity .15s; }
+
+  .pickrow { display: flex; gap: 14px; align-items: flex-start; margin-top: 4px; }
+  .wheel { width: 88px; height: 88px; border-radius: 50%; cursor: crosshair; flex: none;
+    border: 1px solid var(--line); background: #fff; }
+  .bubbles { display: flex; gap: 8px; flex-wrap: wrap; align-content: flex-start; padding-top: 4px; }
+  .bub { width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+    border: 1px solid rgba(0,0,0,.12); transition: transform .1s; }
+  .bub:hover { transform: scale(1.15); border-color: #111827; }
+
+  .actions { display: flex; gap: 10px; margin-top: 14px; }
+  button { flex: 1; border-radius: 12px; padding: 11px 14px; font-weight: 650; font-size: 14px;
+    cursor: pointer; border: 1px solid transparent; transition: opacity .15s, transform .05s; }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent); color: var(--accent-ink); }
+  button.primary:hover { opacity: .88; }
+  button.ghost { background: #fff; border-color: var(--line); color: var(--ink); flex: 0 0 auto; }
+  button.ghost:hover { background: #f9fafb; }
+  button:disabled { opacity: .5; cursor: wait; }
+  button.small { flex: none; padding: 8px 12px; font-size: 13px; }
+
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 22px; }
+
+  /* splash */
+  #splash { position: fixed; inset: 0; background: var(--bg); z-index: 50;
+    display: flex; align-items: center; justify-content: center; transition: opacity .35s; }
+  #splash.hide { opacity: 0; pointer-events: none; }
+  .splash-card { background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+    box-shadow: var(--shadow); padding: 36px 40px; text-align: center; max-width: 340px; width: calc(100% - 40px); }
+  .splash-logo { width: 52px; height: 52px; border-radius: 16px; background: #111827; color: #fff;
+    display: grid; place-items: center; font-weight: 800; font-size: 26px; margin: 0 auto 14px; }
+  .spinner { width: 28px; height: 28px; border-radius: 50%; margin: 16px auto 8px;
+    border: 3px solid var(--line); border-top-color: #111827; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #splash p { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; }
+  #retry { display: none; margin-top: 14px; }
+
+  /* toast */
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    background: #111827; color: #fff; font-size: 13.5px; font-weight: 600;
+    padding: 11px 18px; border-radius: 999px; opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s; z-index: 60; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.err { background: #b91c1c; }
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-card">
+    <div class="splash-logo">L</div>
+    <b>Lumino</b>
+    <div class="spinner" id="spin"></div>
+    <p id="splashmsg">Connexion au serveur local…</p>
+    <button id="retry" class="ghost small">Réessayer</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">L</div>
+      <h1>Lumino <small>RTX 5080 · CM · WC — contrôle local</small></h1>
+    </div>
+    <div class="pill" id="statuspill"><span class="dot"></span><span id="statustxt">Connexion…</span></div>
+  </header>
+
+  <section class="hero">
+    <h2>Tout synchroniser</h2>
+    <p class="desc">Une seule couleur pour GPU + carte mère + watercooling.</p>
+    <div class="row">
+      <input id="mcolor" type="color" value="#00aaff">
+      <div class="grow">
+        <label class="lbl">Luminosité <b><span id="mbval">100</span> %</b></label>
+        <input id="mbri" type="range" min="0" max="100" value="100">
+      </div>
+    </div>
+    <div class="pickrow">
+      <canvas id="mwheel" class="wheel" width="176" height="176"></canvas>
+      <div class="bubbles" id="mbubs"></div>
+    </div>
+    <div class="preview" id="mprev"></div>
+    <div class="actions">
+      <button id="mapply" class="primary">Tout appliquer</button>
+      <button id="malloff" class="ghost">Tout éteindre</button>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Carte graphique</h2>
+      <p class="desc">RTX 5080 · sauvegardé sur le GPU.</p>
+      <div class="row">
+        <input id="color" type="color" value="#00aaff">
+        <div class="grow">
+          <label class="lbl">Luminosité <b><span id="bval">100</span> %</b></label>
+          <input id="bri" type="range" min="0" max="100" value="100">
+        </div>
+      </div>
+      <div class="pickrow">
+        <canvas id="wheel" class="wheel" width="176" height="176"></canvas>
+        <div class="bubbles" id="bubs"></div>
+      </div>
+      <div class="preview" id="prev"></div>
+      <div class="actions">
+        <button id="apply" class="primary">Appliquer</button>
+        <button id="off" class="ghost">Éteindre</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Carte mère</h2>
+      <p class="desc">ASUS Aura · persistant au reboot.</p>
+      <div class="row">
+        <input id="ccolor" type="color" value="#00aaff">
+        <div class="grow">
+          <label class="lbl">Luminosité <b><span id="cbval">100</span> %</b></label>
+          <input id="cbri" type="range" min="0" max="100" value="100">
+        </div>
+      </div>
+      <div class="pickrow">
+        <canvas id="cwheel" class="wheel" width="176" height="176"></canvas>
+        <div class="bubbles" id="cbubs"></div>
+      </div>
+      <div class="preview" id="cprev"></div>
+      <div class="actions">
+        <button id="capply" class="primary">Appliquer CM</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Watercooling</h2>
+      <p class="desc">Header ARGB 1 · à ré-appliquer après reboot.</p>
+      <div class="row">
+        <input id="wcolor" type="color" value="#00aaff">
+        <div class="grow">
+          <label class="lbl">Luminosité <b><span id="wbval">100</span> %</b></label>
+          <input id="wbri" type="range" min="0" max="100" value="100">
+        </div>
+      </div>
+      <div class="pickrow">
+        <canvas id="wwheel" class="wheel" width="176" height="176"></canvas>
+        <div class="bubbles" id="wbubs"></div>
+      </div>
+      <div class="preview" id="wprev"></div>
+      <div class="actions">
+        <button id="wapply" class="primary">Appliquer WC</button>
+      </div>
+    </section>
+  </div>
+
+  <footer>Lumino · 100 % local · http://127.0.0.1:6420</footer>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let toastT = null;
+function toast(msg, err){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = err ? 'err show' : 'show';
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.className = err ? 'err' : '', 2400);
+}
+function setStatus(mode, txt){
+  const p = $('statuspill');
+  p.className = 'pill' + (mode === 'ok' ? ' ok' : mode === 'ko' ? ' ko' : '');
+  $('statustxt').textContent = txt;
+}
+async function post(path, body){
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), 30000);
+  try {
+    const r = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body || {}), signal: ctl.signal});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.ok === false) throw new Error((j && j.error) || ('HTTP ' + r.status));
+    return j;
+  } finally { clearTimeout(to); }
+}
+function hexToRgb(h){ h=h.replace('#',''); return {r:parseInt(h.slice(0,2),16), g:parseInt(h.slice(2,4),16), b:parseInt(h.slice(4,6),16)}; }
+function rgbToHex(r,g,b){ const h=n=>Math.max(0,Math.min(255,n)).toString(16).padStart(2,'0'); return '#'+h(r)+h(g)+h(b); }
+
+/* previews */
+function bindPreview(colorId, briId, valId, prevId){
+  const refresh = () => {
+    const c = $(colorId).value, b = +$(briId).value;
+    $(valId).textContent = b;
+    $(prevId).style.background = c;
+    $(prevId).style.opacity = 0.15 + 0.85 * (b/100);
+  };
+  $(colorId).oninput = refresh; $(briId).oninput = refresh; refresh();
+  return refresh;
+}
+const refreshPrev = bindPreview('color','bri','bval','prev');
+const refreshMprev = bindPreview('mcolor','mbri','mbval','mprev');
+function refreshAprev(){
+  for (const [c,b,v,p] of [['ccolor','cbri','cbval','cprev'],['wcolor','wbri','wbval','wprev']]) {
+    const col = $(c).value, bri = +$(b).value;
+    $(v).textContent = bri;
+    $(p).style.background = col;
+    $(p).style.opacity = 0.15 + 0.85 * (bri/100);
+  }
+}
+$('ccolor').oninput = refreshAprev; $('cbri').oninput = refreshAprev;
+$('wcolor').oninput = refreshAprev; $('wbri').oninput = refreshAprev; refreshAprev();
+
+/* color wheel + presets */
+const PRESETS = ['#ff0000','#ff7f00','#ffd60a','#22c55e','#00d5ff','#2b6cff','#7c3aed','#ff2fb3','#ffffff','#111827'];
+function hsv(h,s,v){
+  const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c;
+  let r,g,b;
+  if(h<60){r=c;g=x;b=0}else if(h<120){r=x;g=c;b=0}else if(h<180){r=0;g=c;b=x}
+  else if(h<240){r=0;g=x;b=c}else if(h<300){r=x;g=0;b=c}else{r=c;g=0;b=x}
+  return [Math.round((r+m)*255),Math.round((g+m)*255),Math.round((b+m)*255)];
+}
+function drawWheel(cv){
+  const ctx = cv.getContext('2d'), S = cv.width, R = S/2;
+  const img = ctx.createImageData(S, S);
+  for (let y=0; y<S; y++) for (let x=0; x<S; x++){
+    const dx=x-R+0.5, dy=y-R+0.5, d=Math.sqrt(dx*dx+dy*dy)/R;
+    if (d>1) continue;
+    let h=Math.atan2(dy,dx)*180/Math.PI; if (h<0) h+=360;
+    const s=Math.min(1,d*1.12), c=hsv(h,s,1), i=(y*S+x)*4;
+    img.data[i]=c[0]; img.data[i+1]=c[1]; img.data[i+2]=c[2]; img.data[i+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+}
+function wirePicker(wheelId, bubsId, inputId, refreshFn){
+  const cv = $(wheelId);
+  drawWheel(cv);
+  const pick = ev => {
+    const r = cv.getBoundingClientRect();
+    const x = (ev.clientX-r.left)*(cv.width/r.width)-cv.width/2;
+    const y = (ev.clientY-r.top)*(cv.height/r.height)-cv.height/2;
+    if (Math.sqrt(x*x+y*y) > cv.width/2) return;
+    let h = Math.atan2(y,x)*180/Math.PI; if (h<0) h+=360;
+    const d = Math.min(1, Math.sqrt(x*x+y*y)/(cv.width/2)*1.12);
+    const [rr,gg,bb] = hsv(h,d,1);
+    $(inputId).value = rgbToHex(rr,gg,bb);
+    refreshFn();
+  };
+  let down = false;
+  cv.addEventListener('pointerdown', e=>{down=true; cv.setPointerCapture(e.pointerId); pick(e);});
+  cv.addEventListener('pointermove', e=>{ if(down) pick(e); });
+  cv.addEventListener('pointerup', ()=>{down=false;});
+  const box = $(bubsId);
+  box.innerHTML = '';
+  PRESETS.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'bub'; d.style.background = c; d.title = c;
+    d.onclick = ()=>{ $(inputId).value = c; refreshFn(); };
+    box.appendChild(d);
+  });
+}
+wirePicker('wheel','bubs','color',refreshPrev);
+wirePicker('cwheel','cbubs','ccolor',refreshAprev);
+wirePicker('wwheel','wbubs','wcolor',refreshAprev);
+wirePicker('mwheel','mbubs','mcolor',refreshMprev);
+
+function busy(btn, fn){
+  return async e => {
+    btn.disabled = true;
+    try { await fn(); }
+    catch(err){ toast(String(err.message || err), true); }
+    finally { btn.disabled = false; }
+  };
+}
+$('mapply').onclick = busy($('mapply'), async () => {
+  const {r,g,b} = hexToRgb($('mcolor').value), bri = +$('mbri').value;
+  localStorage.setItem('lumino_all', JSON.stringify({c: $('mcolor').value, bri}));
+  await Promise.all([
+    post('/api/apply', {r,g,b, brightness:bri, save:true}),
+    post('/api/cw_apply', {r,g,b, brightness:bri}),
+  ]);
+  toast('Tout appliqué');
+});
+$('malloff').onclick = busy($('malloff'), async () => { await post('/api/all_off', {}); toast('Tout éteint'); });
+$('apply').onclick = busy($('apply'), async () => {
+  const {r,g,b} = hexToRgb($('color').value);
+  await post('/api/apply', {r,g,b, brightness:+$('bri').value, save:true});
+  toast('GPU appliqué');
+});
+$('off').onclick = busy($('off'), async () => { await post('/api/off', {save:true}); toast('GPU éteint'); });
+$('capply').onclick = busy($('capply'), async () => {
+  const {r,g,b} = hexToRgb($('ccolor').value);
+  await post('/api/cm_apply', {r,g,b, brightness:+$('cbri').value});
+  toast('CM appliquée');
+});
+$('wapply').onclick = busy($('wapply'), async () => {
+  const {r,g,b} = hexToRgb($('wcolor').value);
+  await post('/api/wc_apply', {r,g,b, brightness:+$('wbri').value});
+  toast('WC appliqué');
+});
+try {
+  const sa = JSON.parse(localStorage.getItem('lumino_all') || 'null');
+  if (sa && sa.c) { $('mcolor').value = sa.c; if (typeof sa.bri === 'number') $('mbri').value = sa.bri; refreshMprev(); }
+} catch(err){}
+
+/* splash + status : on attend le serveur, puis on hydrate */
+let connected = false;
+async function loadStatus(){
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch('/api/status', {signal: ctl.signal});
+    const o = await r.json();
+    const last = o && o.state && o.state.last;
+    if (last && typeof last.r === 'number') {
+      $('color').value = rgbToHex(last.r, last.g, last.b);
+      if (typeof last.brightness === 'number') $('bri').value = last.brightness;
+      refreshPrev();
+    }
+    const alast = o && o.state && (o.state.wc_last || o.state.aura_last);
+    if (alast && typeof alast.r === 'number') {
+      $('wcolor').value = rgbToHex(alast.r, alast.g, alast.b);
+      if (typeof alast.brightness === 'number') $('wbri').value = alast.brightness;
+    }
+    const clast = o && o.state && o.state.cm_last;
+    if (clast && typeof clast.r === 'number') {
+      $('ccolor').value = rgbToHex(clast.r, clast.g, clast.b);
+      if (typeof clast.brightness === 'number') $('cbri').value = clast.brightness;
+    }
+    refreshAprev();
+    if (!connected) {
+      connected = true;
+      $('splash').classList.add('hide');
+      setStatus('ok', 'En ligne');
+    }
+    return true;
+  } catch(err) {
+    setStatus('ko', 'Hors ligne');
+    $('splashmsg').textContent = 'Serveur injoignable — vérifie que python app.py tourne, puis réessaie.';
+    $('retry').style.display = 'inline-block';
+    $('spin').style.display = 'none';
+    return false;
+  } finally { clearTimeout(to); }
+}
+$('retry').onclick = () => {
+  $('spin').style.display = 'block';
+  $('retry').style.display = 'none';
+  $('splashmsg').textContent = 'Connexion au serveur local…';
+  loadStatus();
+};
+/* 1er chargement : splash visible, retry toutes les 3 s jusqu'à OK */
+loadStatus();
+const iv = setInterval(async () => {
+  if (connected) { clearInterval(iv); return; }
+  await loadStatus();
+}, 3000);
+</script>
+</body>
+</html>

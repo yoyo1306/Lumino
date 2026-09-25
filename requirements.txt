@@ -1,0 +1,2 @@
+# Lumino — stdlib + hidapi (backend ASUS Aura USB).
+hidapi
