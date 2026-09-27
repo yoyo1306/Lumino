@@ -207,6 +207,15 @@ class LedBlock(ttk.LabelFrame):
         self.hexvar.set(h)
         self.refresh()
 
+    def set_values(self, h, bri):
+        """Restaure teinte + pourcentage (ex : au lancement, ou synchro)."""
+        self.hexvar.set(h)
+        try:
+            self.scale.set(max(0, min(100, int(bri))))
+        except (ValueError, tk.TclError):
+            pass
+        self.refresh()
+
     def pick(self):
         _r, hx = colorchooser.askcolor(color=self.hexvar.get(), title="Choisir une couleur")
         if hx:
@@ -223,19 +232,13 @@ class LedBlock(ttk.LabelFrame):
         self.brilbl.config(text=f"{bri} %")
         try:
             r, g, b = hex_to_rgb(hx)
-            f = 0.15 + 0.85 * (bri / 100)
-            shown = rgb_to_hex(int(r * f + 255 * (1 - f) * 0.1),
-                               int(g * f + 255 * (1 - f) * 0.1),
-                               int(b * f + 255 * (1 - f) * 0.1))
+            f = bri / 100  # l'apercu montre le vrai niveau envoye aux LEDs
+            shown = rgb_to_hex(round(r * f), round(g * f), round(b * f))
             self.prev.delete("all")
-            self.prev.configure(bg=hx)
+            self.prev.create_rectangle(0, 0, 2000, 30, fill=shown, outline="")
+            self.prev.configure(bg=shown)
             self.swatch.configure(bg=hx, activebackground=hx)
         except ValueError:
-            pass
-        # garde l'aperçu lisible même à 0 %
-        try:
-            self.prev.create_rectangle(0, 0, 2000, 30, fill=hx, outline="")
-        except tk.TclError:
             pass
 
     def values(self):
@@ -273,6 +276,19 @@ class App(tk.Tk):
             try:
                 return rgb_to_hex(int(d["r"]), int(d["g"]), int(d["b"]))
             except (KeyError, TypeError, ValueError):
+                return fb
+
+        def hx_dim(d, fb):
+            """cm_last/wc_last stockent du RGB deja attenue par le % :
+            on inverse l'attenuation pour retrouver la teinte choisie
+            (evite la double-attenuation a chaque re-application)."""
+            try:
+                bri = int(d.get("brightness", 100))
+                if bri > 0:
+                    return rgb_to_hex(*(
+                        min(255, round(int(d[k]) * 100 / bri)) for k in ("r", "g", "b")))
+                return hx(d, fb)
+            except (KeyError, TypeError, ValueError, ZeroDivisionError):
                 return fb
 
         style = ttk.Style(self)
@@ -341,13 +357,13 @@ class App(tk.Tk):
         self.blk_gpu.pack(fill="x", pady=4)
 
         self.blk_cm = LedBlock(body, "Carte mere (ASUS Aura)", "Static persiste au reboot",
-                               default_hex=hx(cm, "#00aaff"),
+                               default_hex=hx_dim(cm, "#00aaff"),
                                default_bri=int(cm.get("brightness", 100)),
                                apply_label="Appliquer CM", on_apply=self.do_cm)
         self.blk_cm.pack(fill="x", pady=4)
 
         self.blk_wc = LedBlock(body, "Watercooling (ARGB 1)", "Direct — re-applique au demarrage",
-                               default_hex=hx(wc, "#00aaff"),
+                               default_hex=hx_dim(wc, "#00aaff"),
                                default_bri=int(wc.get("brightness", 100)),
                                apply_label="Appliquer WC", on_apply=self.do_wc)
         self.blk_wc.pack(fill="x", pady=4)
@@ -429,7 +445,7 @@ class App(tk.Tk):
         except Exception as e:  # noqa: BLE001
             return f"GPU OK, Aura partiel : {e}"
         for blk in (self.blk_gpu, self.blk_cm, self.blk_wc):
-            self.after(0, lambda b=blk: (b.set_hex(rgb_to_hex(r, g, b))))
+            self.after(0, lambda b=blk: b.set_values(rgb_to_hex(r, g, b), bri))
         return f"Tout applique {r},{g},{b} a {bri} %"
 
     def do_gpu(self, blk):
