@@ -1,5 +1,6 @@
 @echo off
-rem Lumino - lance l'app (exe, aucun serveur, rien en fond)
+rem Lumino - lance l'app bureau (exe). Pas de site web.
+rem Le fond Corsair demarre seulement apres un Appliquer Corsair.
 cd /d "%~dp0"
 if exist Lumino.exe (
   start "Lumino" Lumino.exe

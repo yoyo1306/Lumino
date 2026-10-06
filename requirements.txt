@@ -1,2 +1,3 @@
-# Lumino — stdlib + hidapi (backend ASUS Aura USB).
+# Lumino — stdlib + hidapi (backend ASUS Aura USB) + Pillow (JPEG ecran LCD).
 hidapi
+Pillow

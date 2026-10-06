@@ -137,6 +137,46 @@ class Aura:
         self.send_effect(wc["effect"], MODE_DIRECT)
         self.send_direct(wc["direct"], [(r, g, b)] * wc["leds"])
 
+    def set_cm_colors(self, colors):
+        """LEDs fixes en direct (volatile) : une image, pas un commit.
+
+        Le mode direct n'est envoyé qu'une fois. Les images suivantes
+        ne repassent que les couleurs.
+        """
+        ch = next(c for c in self.channels if c["kind"] == "fixed")
+        n = ch["leds"]
+        cols = [tuple(int(x) & 255 for x in c) for c in colors]
+        if not cols:
+            cols = [(0, 0, 0)]
+        if len(cols) < n:
+            cols = cols + [cols[-1]] * (n - len(cols))
+        else:
+            cols = cols[:n]
+        if not getattr(self, "_direct_fixed", False):
+            self.send_effect(ch["effect"], MODE_DIRECT)
+            self._direct_fixed = True
+        self.send_direct(ch["direct"], cols)
+
+    def set_channel_colors(self, ch, colors, refresh_mode=False):
+        """Un canal en direct. `colors` fixe le nombre de LEDs envoyées.
+
+        refresh_mode renvoie le mode direct avant les couleurs. Sans ça,
+        ce firmware garde la première image.
+        """
+        cols = [tuple(int(x) & 255 for x in c) for c in colors]
+        if not cols:
+            cols = [(0, 0, 0)]
+        if ch["kind"] == "fixed":
+            flag = "_direct_fixed"
+        else:
+            flag = "_direct_addr_%s" % ch["direct"]
+        if refresh_mode or not getattr(self, flag, False):
+            self.send_effect(ch["effect"], MODE_DIRECT)
+            if not getattr(self, flag, False):
+                time.sleep(0.02)
+            setattr(self, flag, True)
+        self.send_direct(ch["direct"], cols)
+
     def set_cm(self, r, g, b):
         """Carte mère (LEDs fixes) en static persisté."""
         import time as _t

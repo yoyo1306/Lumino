@@ -21,6 +21,29 @@ _Q_GET_PCI = 0x2DDFB66E
 _Q_I2C_WRITE_EX = 0x283AC65A
 _Q_I2C_READ_EX = 0x4D7B0709
 _Q_GET_FULL_NAME = 0x0CEEE8E9F
+_Q_GET_THERMAL = 0xE3640A56
+
+
+class NV_GPU_THERMAL_SENSOR(ctypes.Structure):
+    _fields_ = [
+        ("controller", ctypes.c_int32),
+        ("defaultMinTemp", ctypes.c_int32),
+        ("defaultMaxTemp", ctypes.c_int32),
+        ("currentTemp", ctypes.c_int32),
+        ("target", ctypes.c_int32),
+    ]
+
+
+class NV_GPU_THERMAL_SETTINGS(ctypes.Structure):
+    _fields_ = [
+        ("version", ctypes.c_uint32),
+        ("count", ctypes.c_uint32),
+        ("sensor", NV_GPU_THERMAL_SENSOR * 3),
+    ]
+
+
+def _thermal_version():
+    return (2 << 16) | ctypes.sizeof(NV_GPU_THERMAL_SETTINGS)
 
 
 class NV_I2C_INFO_V3(ctypes.Structure):
@@ -103,6 +126,18 @@ class NvAPI:
             )
         except RuntimeError:
             self._name_fn = None
+        try:
+            self._thermal_fn = _get(
+                _Q_GET_THERMAL,
+                ctypes.CFUNCTYPE(
+                    ctypes.c_int32,
+                    ctypes.c_void_p,
+                    ctypes.c_uint32,
+                    ctypes.POINTER(NV_GPU_THERMAL_SETTINGS),
+                ),
+            )
+        except RuntimeError:
+            self._thermal_fn = None
 
     # --- init / enum -------------------------------------------------
     def initialize(self):
@@ -146,6 +181,23 @@ class NvAPI:
         if st != NVAPI_OK:
             return "NVIDIA GPU"
         return buf.value.decode(errors="ignore")
+
+    def get_gpu_temp(self, handle):
+        """Temperature GPU °C (NvAPI_GPU_GetThermalSettings). None si KO."""
+        if self._thermal_fn is None:
+            return None
+        for target in (1, 0):  # GPU puis defaut
+            try:
+                s = NV_GPU_THERMAL_SETTINGS()
+                s.version = _thermal_version()
+                st = self._thermal_fn(handle, target, ctypes.byref(s))
+                if st == NVAPI_OK and s.count > 0:
+                    t = int(s.sensor[0].currentTemp)
+                    if -40 < t < 125:
+                        return t
+            except OSError:
+                return None
+        return None
 
     # --- I2C bas niveau (style OpenRGB i2c_smbus_nvapi) ---------------
     def _make_info(self, addr7, data_buf, size, port=1):

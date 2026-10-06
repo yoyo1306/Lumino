@@ -1,7 +1,8 @@
 """Lumino - re-applique la config sauvegardee au demarrage Windows.
-One-shot : applique GPU + CM + WC puis SE FERME (aucun processus resident,
-aucun serveur). Lance via le dossier Demarrage ou la tache LuminoRGB.
-Journalise dans lumino.log. Utiliser pythonw.exe (pas de console).
+One-shot statique pour le GPU et la carte mere, puis demarre le fond.
+Si un effet est enregistre, ce fond le reprend sur les trois appareils
+(le hub oublie sa couleur des qu'on arrete de lui parler).
+Lance via le dossier Demarrage. Journalise dans lumino.log.
 
 Usage :
   pythonw apply_boot.py [--delay 15] [--tries 10]
@@ -29,26 +30,45 @@ def _log(msg):
         pass
 
 
+def _aura_rgb(last):
+    """RGB a envoyer. Nouveau format : teinte + pourcentage.
+    Ancien format : RGB deja attenue."""
+    r, g, b = int(last["r"]), int(last["g"]), int(last["b"])
+    if not last.get("unscaled"):
+        return r, g, b
+    try:
+        bri = int(last.get("brightness", 100))
+    except (TypeError, ValueError):
+        bri = 100
+    bri = max(0, min(100, bri))
+    return tuple(c * bri // 100 for c in (r, g, b))
+
+
 def boot_gpu(cfg, tries=6):
     from nvapi import NvAPI
     import blackwell
     r, g, b = int(cfg["r"]), int(cfg["g"]), int(cfg["b"])
-    bri = max(1, min(10, round(int(cfg.get("brightness", 100)) / 10)))
+    level = blackwell.level_from_percent(cfg.get("brightness", 100))
+    send_r, send_g, send_b = (0, 0, 0) if level <= 0 else (r, g, b)
+    hw = 1 if level <= 0 else level
+    import corsair_keep
     last_err = None
     for attempt in range(1, tries + 1):
         try:
-            nv = NvAPI()
-            nv.initialize()
-            gpus = nv.enum_gpus()
-            if not gpus:
-                raise RuntimeError("aucun GPU NVIDIA (driver pas pret ?)")
-            h = gpus[0]
-            ok, detail = blackwell.probe(nv, h, port=1)
-            if not ok:
-                raise RuntimeError(f"sonde 0x75 KO ({detail})")
-            # do_save=False : la CM a deja le save persistant, on use pas l'EEPROM au boot
-            blackwell.apply_static(nv, h, r, g, b, bri, False)
-            _log(f"BOOT gpu r={r} g={g} b={b} (essai {attempt})")
+            with corsair_keep.hw_hold():
+                nv = NvAPI()
+                nv.initialize()
+                gpus = nv.enum_gpus()
+                if not gpus:
+                    raise RuntimeError("aucun GPU NVIDIA (driver pas pret ?)")
+                h = gpus[0]
+                ok, detail = blackwell.probe(nv, h, port=1)
+                if not ok:
+                    raise RuntimeError(f"sonde 0x75 KO ({detail})")
+                # do_save=False : la couleur a deja ete gravee par l'UI.
+                # On rejoue en volatile au cas ou le driver a efface les LEDs.
+                blackwell.apply_static(nv, h, send_r, send_g, send_b, hw, False)
+            _log(f"BOOT gpu r={send_r} g={send_g} b={send_b} niveau={hw} (essai {attempt})")
             return
         except Exception as e:  # noqa: BLE001
             last_err = e
@@ -59,16 +79,19 @@ def boot_gpu(cfg, tries=6):
 
 def boot_aura(key, fn, last, tries=6):
     import aura
+    import corsair_keep
     last_err = None
     for attempt in range(1, tries + 1):
         a = None
         try:
-            a = aura.Aura()
-            try:
-                getattr(a, fn)(int(last["r"]), int(last["g"]), int(last["b"]))
-            finally:
-                a.close()
-            _log(f"BOOT {key} r={last['r']} g={last['g']} b={last['b']} (essai {attempt})")
+            with corsair_keep.hw_hold():
+                a = aura.Aura()
+                try:
+                    sr, sg, sb = _aura_rgb(last)
+                    getattr(a, fn)(sr, sg, sb)
+                finally:
+                    a.close()
+            _log(f"BOOT {key} r={sr} g={sg} b={sb} (essai {attempt})")
             return
         except Exception as e:  # noqa: BLE001
             last_err = e
@@ -96,7 +119,7 @@ def main():
         time.sleep(args.delay)
 
     try:
-        with open(CONFIG_PATH) as f:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
             cfg = json.load(f)
     except (OSError, ValueError) as e:
         _log(f"BOOT config illisible: {e}")
@@ -106,8 +129,8 @@ def main():
         return
 
     if args.check:
-        _log(f"BOOT check cfg gpu={('r' in cfg)} cm={('cm_last' in cfg)} wc={('wc_last' in cfg)}")
-        txt = json.dumps({k: cfg.get(k) for k in ("r", "g", "b", "brightness", "cm_last", "wc_last")}, indent=2)
+        _log(f"BOOT check cfg gpu={('r' in cfg)} cm={('cm_last' in cfg)} corsair={('corsair_last' in cfg)}")
+        txt = json.dumps({k: cfg.get(k) for k in ("r", "g", "b", "brightness", "cm_last", "corsair_last")}, indent=2)
         try:
             print(txt)  # absent en exe --windowed (stdout=None) : ignore
         except (AttributeError, OSError, ValueError):
@@ -116,10 +139,20 @@ def main():
 
     if "r" in cfg:
         boot_gpu(cfg, tries=args.tries)
-    for key, fn in (("cm_last", "set_cm"), ("wc_last", "set_wc")):
+    for key, fn in (("cm_last", "set_cm"),):
         last = cfg.get(key)
         if isinstance(last, dict) and "r" in last:
             boot_aura(key, fn, last, tries=args.tries)
+    # Corsair LINK : one-shot inutile (Hub volatile) -> demarre le keepalive
+    # de fond qui tient la couleur de "corsair_last". iCUE doit rester ferme.
+    last = cfg.get("corsair_last")
+    if isinstance(last, dict) and "r" in last:
+        try:
+            import corsair_keep
+            ok = corsair_keep.ensure_running()
+            _log(f"BOOT corsair keepalive={'ON' if ok else 'KO'}")
+        except Exception as e:  # noqa: BLE001
+            _log(f"BOOT corsair erreur: {e}")
     _log("BOOT fin")
 
 

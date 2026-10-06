@@ -3,5 +3,25 @@
   "g": 170,
   "b": 255,
   "brightness": 100,
-  "save": true
+  "save": true,
+  "cm_last": {
+    "r": 0,
+    "g": 170,
+    "b": 255,
+    "brightness": 100,
+    "unscaled": true
+  },
+  "effect": {
+    "mode": "static",
+    "speed": 4
+  },
+  "corsair_last": {
+    "r": 255,
+    "g": 235,
+    "b": 0,
+    "brightness": 100,
+    "mode": "static",
+    "speed": 4,
+    "unscaled": true
+  }
 }

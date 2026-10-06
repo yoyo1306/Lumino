@@ -13,7 +13,12 @@ LuminoDbg*
 # Lumino local (couleurs perso + logs, pas dans git)
 config.json
 lumino.log
+lcd_media/
 apply_watch.json
+corsair_keepalive.lock
+corsair_keepalive.stop
+sync_idle.txt
+hw_apply.lock
 
 # Restes du reverse GCC (33 Mo de DLL, inutiles au quotidien)
 vendor/
