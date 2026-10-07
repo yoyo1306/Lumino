@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 import tkinter as tk
+import winreg
 from tkinter import colorchooser, filedialog, messagebox
 
 import blackwell
@@ -27,6 +28,9 @@ os.chdir(BASE)
 CONFIG_PATH = os.path.join(BASE, "config.json")
 LOG_PATH = os.path.join(BASE, "lumino.log")
 LCD_MEDIA = os.path.join(BASE, "lcd_media")
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+RUN_NAME = "Lumino"
+STARTUP_LNK = "Lumino.lnk"
 
 PRESETS = [
     "#ff0000", "#ff7f00", "#ffd60a", "#22c55e",
@@ -34,6 +38,65 @@ PRESETS = [
     "#ffffff", "#111827",
 ]
 MODE_CHOICES = tuple(effects.MODE_LABELS[m] for m in effects.MODES)
+
+
+def _boot_exe():
+    if getattr(sys, "frozen", False):
+        return os.path.abspath(sys.executable)
+    bundled = os.path.join(BASE, "Lumino.exe")
+    if os.path.isfile(bundled):
+        return os.path.abspath(bundled)
+    return os.path.abspath(sys.executable)
+
+
+def _boot_command():
+    return f'"{_boot_exe()}" --boot --delay 10'
+
+
+def _startup_lnk():
+    appdata = os.environ.get("APPDATA", "")
+    return os.path.join(
+        appdata, "Microsoft", "Windows", "Start Menu", "Programs", "Startup", STARTUP_LNK)
+
+
+def _registry_boot():
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as key:
+            val, _ = winreg.QueryValueEx(key, RUN_NAME)
+    except OSError:
+        return False
+    text = str(val).lower()
+    return "lumino" in text and "--boot" in text
+
+
+def startup_boot_enabled():
+    return os.path.isfile(_startup_lnk()) or _registry_boot()
+
+
+def _remove_startup_lnk():
+    lnk = _startup_lnk()
+    if os.path.isfile(lnk):
+        os.remove(lnk)
+
+
+def _remove_registry_boot():
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
+            winreg.DeleteValue(key, RUN_NAME)
+    except OSError:
+        pass
+
+
+def set_startup_boot(enabled):
+    """Une seule entrée : la valeur Run déjà utilisée au démarrage.
+    Le raccourci du dossier Démarrage est retiré pour ne pas lancer deux fois."""
+    if not enabled:
+        _remove_startup_lnk()
+        _remove_registry_boot()
+        return
+    _remove_startup_lnk()
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as key:
+        winreg.SetValueEx(key, RUN_NAME, 0, winreg.REG_SZ, _boot_command())
 
 
 def _log(msg):
@@ -489,6 +552,13 @@ class App(tk.Tk):
         self.btn_stop.pack(side="bottom", fill="x", ipady=6)
         self.btn_off_all.pack(side="bottom", fill="x", ipady=6, pady=(0, 8))
         self.btn_lcd.pack(side="bottom", fill="x", ipady=6, pady=(0, 8))
+        self.boot_var = tk.BooleanVar(value=startup_boot_enabled())
+        self.boot_chk = tk.Checkbutton(
+            inn, text="Au démarrage de Windows", variable=self.boot_var,
+            command=self._toggle_boot, anchor="w", justify="left",
+            font=("Segoe UI", 9), relief="flat", bd=0, highlightthickness=0,
+            cursor="hand2", wraplength=190)
+        self.boot_chk.pack(side="bottom", fill="x", pady=(0, 12))
 
         self.nav = {}
         for key, name in NAV:
@@ -895,6 +965,9 @@ class App(tk.Tk):
         side_btn = "#2a2d36" if self.theme_name == "dark" else "#f3f4f6"
         self._style_ghost(self.btn_off_all, side_btn)
         self._style_ghost(self.btn_stop, side_btn)
+        self.boot_chk.configure(
+            bg=p["side"], fg=p["text"], activebackground=p["side"],
+            activeforeground=p["text"], selectcolor=p["input"])
         self._paint_lcd(side_btn)
         self.title_lbl.configure(bg=p["bg"], fg=p["text"])
         self.sub_lbl.configure(bg=p["bg"], fg=p["muted"])
@@ -1717,6 +1790,19 @@ class App(tk.Tk):
             return msg, ui, "info"
 
         self.run_bg(_fn)
+
+    def _toggle_boot(self):
+        want = bool(self.boot_var.get())
+        try:
+            set_startup_boot(want)
+        except OSError as e:
+            self.boot_var.set(not want)
+            self.done(f"Démarrage : {e}", "err")
+            return
+        if want:
+            self.done("Dernier profil lancé au démarrage")
+        else:
+            self.done("Démarrage Windows désactivé")
 
     def _read_fond(self):
         try:
