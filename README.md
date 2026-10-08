@@ -1,8 +1,9 @@
-# Lumino — contrôle RGB local (RTX 5080 + ASUS Aura)
+# Lumino — contrôle RGB local (RTX 5080 + ASUS Aura + Ambiglow)
 
 App bureau Windows **sans GCC, sans OpenRGB, sans site web**.
 Parle directement au contrôleur LED via I2C interne du GPU (NvAPI Ex, port 1)
 et au contrôleur ASUS Aura en USB (HID).
+L'Ambiglow du Philips Evnia 27M2N8500 passe par le DisplayPort.
 
 Testé sur : `GV-N5080AORUSIF WD-16GD` (`VEN_10DE DEV_2C02 SUBSYS_41E2_1458`)
 + ROG Strix B850-A (`0B05:19AF`).
@@ -29,11 +30,24 @@ Memory Mode avant de fermer iCUE).
 `config.json` garde le dernier choix (+ taille de fenêtre `win_geo`).
 `Lumino.exe --boot --delay 10` = mode démarrage sans fenêtre.
 
+## Ambiglow (Philips Evnia 27M2N8500)
+
+Page **Ambiglow** : modes, couleurs, luminosité et vitesse du menu OSD,
+envoyés par le câble vidéo. Le câble USB n'est pas nécessaire pour ces réglages.
+
+Les couleurs sont grisées pour Désactivé, Suivre la vidéo et Suivre l'audio.
+La vitesse n'apparaît que pour Changement de couleur, Onde de couleur,
+Respiration des couleurs et Nuit étoilée.
+
+Les pastilles de **Tout** suivent cette palette, sans l'arc-en-ciel.
+Appliquer envoie la même teinte au PC et l'entrée correspondante à l'écran,
+sans changer le mode Ambiglow. Le mode de l'écran doit accepter une couleur.
+
 ## Construire l'exe
 
 ```powershell
 pip install pyinstaller hidapi pillow
-pyinstaller --noconfirm --clean --onefile --windowed --name Lumino --icon lumino.ico --hidden-import hid --hidden-import apply_boot --hidden-import blackwell --hidden-import nvapi --hidden-import aura --hidden-import corsair_link --hidden-import corsair_keep --hidden-import effects lumino_gui.py
+pyinstaller --noconfirm --clean --onefile --windowed --name Lumino --icon lumino.ico --hidden-import hid --hidden-import ambiglow --hidden-import apply_boot --hidden-import blackwell --hidden-import nvapi --hidden-import aura --hidden-import corsair_link --hidden-import corsair_keep --hidden-import effects lumino_gui.py
 copy dist\Lumino.exe Lumino.exe
 ```
 
@@ -41,7 +55,8 @@ Sans exe : `python lumino_gui.py` (dépendance : `hidapi`).
 
 ## Fichiers
 
-- `lumino_gui.py` — app bureau tkinter (GPU + CM + Corsair LINK, `--boot` inclus,
+- `ambiglow.py` — Philips Evnia 27M2N8500, menu OSD par DisplayPort
+- `lumino_gui.py` — app bureau tkinter (GPU + CM + Corsair LINK + Ambiglow, `--boot` inclus,
   `--corsair-keepalive` / `--corsair-stop` pour le fond Corsair). Pas de serveur.
 - `apply_boot.py` — ré-applique `config.json` au boot (retry driver/USB) + démarre le keepalive Corsair
 - `blackwell.py` — protocole Fusion2 Blackwell (`0x75`, paquets 64 o)

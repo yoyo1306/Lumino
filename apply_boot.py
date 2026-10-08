@@ -143,6 +143,17 @@ def main():
         last = cfg.get(key)
         if isinstance(last, dict) and "r" in last:
             boot_aura(key, fn, last, tries=args.tries)
+    glow = cfg.get("ambiglow_last")
+    if isinstance(glow, dict) and "r" in glow:
+        try:
+            import ambiglow
+            import corsair_keep
+            with corsair_keep.hw_hold():
+                ambiglow.apply_color(glow["r"], glow["g"], glow["b"], glow.get("brightness", 100))
+            _log("BOOT ambiglow r=%s g=%s b=%s bri=%s" % (
+                glow["r"], glow["g"], glow["b"], glow.get("brightness", 100)))
+        except Exception as e:  # noqa: BLE001
+            _log(f"BOOT ambiglow erreur: {e}")
     # Corsair LINK : one-shot inutile (Hub volatile) -> demarre le keepalive
     # de fond qui tient la couleur de "corsair_last". iCUE doit rester ferme.
     last = cfg.get("corsair_last")

@@ -6,7 +6,7 @@ cd /d "%~dp0"
 if not exist Lumino.exe (
   echo Lumino.exe introuvable. Pour le construire :
   echo   pip install pyinstaller
-  echo   pyinstaller --noconfirm --clean --onefile --windowed --name Lumino --icon lumino.ico --hidden-import hid --hidden-import apply_boot --hidden-import blackwell --hidden-import nvapi --hidden-import aura --hidden-import corsair_link --hidden-import corsair_keep --hidden-import effects lumino_gui.py
+  echo   pyinstaller --noconfirm --clean --onefile --windowed --name Lumino --icon lumino.ico --hidden-import hid --hidden-import ambiglow --hidden-import apply_boot --hidden-import blackwell --hidden-import nvapi --hidden-import aura --hidden-import corsair_link --hidden-import corsair_keep --hidden-import effects lumino_gui.py
   echo   copy dist\Lumino.exe Lumino.exe
   pause
   exit /b 1

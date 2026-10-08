@@ -192,7 +192,8 @@ def setup_from_cfg(cfg):
             "brightness": cfg.get("brightness", 100),
             "unscaled": True,
         }, True)
-    if corsair is None and fans is None and gpu is None and cm is None:
+    screen = _block_color(cfg.get("ambiglow_last"), True)
+    if corsair is None and fans is None and gpu is None and cm is None and screen is None:
         return None
     lcd_image = None
     if cfg.get("lcd_image_on") and not cfg.get("lcd_temp"):
@@ -208,7 +209,7 @@ def setup_from_cfg(cfg):
     except (TypeError, ValueError):
         lcd_bri = 100
     return {"mode": mode, "speed": speed, "corsair": corsair, "fans": fans,
-            "gpu": gpu, "cm": cm,
+            "gpu": gpu, "cm": cm, "screen": screen,
             "lcd": bool(cfg.get("lcd_temp")), "lcd_image": lcd_image,
             "lcd_brightness": lcd_bri}
 
@@ -343,8 +344,10 @@ class DeviceSync:
         self._thread = threading.Thread(target=self._run, name="lumino-sync", daemon=True)
         self.gpu_was_live = False
         self.cm_was_live = False
+        self.screen_was_live = False
         self.gpu_lit = False
         self.cm_lit = False
+        self.screen_lit = False
         self.announced = False
         self.nv = None
         self.gpu_handle = None
@@ -352,8 +355,11 @@ class DeviceSync:
         self.cm_leds = 0
         self.fx_gpu = effects.EffectState()
         self.fx_cm = effects.EffectState()
+        self.fx_screen = effects.EffectState()
         self.gpu_hw_key = None
         self.gpu_frame = None
+        self.screen = None
+        self.screen_frame = None
         self.cm_wave_key = None
         self.cm_strips = False
         self.fail = {}
@@ -369,7 +375,7 @@ class DeviceSync:
             _log("KEEP sync thread encore occupe")
             return
         snap = read_setup()
-        if snap and (self.gpu_was_live or self.cm_was_live):
+        if snap and (self.gpu_was_live or self.cm_was_live or self.screen_was_live):
             try:
                 if self.gpu_was_live:
                     self._restore_gpu(snap)
@@ -377,9 +383,13 @@ class DeviceSync:
                 if self.cm_was_live:
                     self._restore_cm(snap)
                     self.cm_was_live = False
+                if self.screen_was_live:
+                    self._restore_screen(snap)
+                    self.screen_was_live = False
             except Exception as e:  # noqa: BLE001
                 _log(f"KEEP sync retour a l'arret: {e}")
         self._close_aura()
+        self._close_screen()
 
     def get_temp(self):
         with self._temp_lock:
@@ -427,18 +437,32 @@ class DeviceSync:
                 self.announced = False
             # La carte mere est reposee par le thread principal. On publie
             # seulement quand les deux ont lache le materiel.
+            if self.screen_was_live:
+                try:
+                    self._restore_screen(snap)
+                except Exception as e:  # noqa: BLE001
+                    _log(f"KEEP sync ecran retour statique: {e}")
+                    self._close_screen()
+                    self._stop.wait(0.5)
+                    return
+                self.screen_was_live = False
+                self.screen_lit = False
             if not self.cm_was_live:
                 _publish_idle(mt)
             self._stop.wait(0.25)
             return
         _clear_idle()
         self.gpu_was_live = True
+        if snap.get("screen") is not None:
+            self.screen_was_live = True
         if not self.announced:
             _log(f"KEEP sync effet {snap['mode']}")
             self.announced = True
         t = time.monotonic() - self.t0
         temp = self.get_temp()
         self._guard("gpu", lambda: self._push_gpu(snap, t, temp))
+        if snap.get("screen") is not None:
+            self._guard("screen", lambda: self._push_screen(snap, t, temp))
         self._stop.wait(0.2)
 
     def service_cm(self, snap, t):
@@ -472,6 +496,8 @@ class DeviceSync:
             if label == "gpu":
                 self.nv = None
                 self.gpu_handle = None
+            elif label == "screen":
+                self._close_screen()
             else:
                 self._close_aura()
             return False
@@ -640,6 +666,65 @@ class DeviceSync:
         self.aura.set_cm_colors(cols)
         self.cm_lit = True
         return True
+
+    def _ensure_screen(self):
+        if self.screen is not None:
+            return
+        import ambiglow
+        self.screen = ambiglow.Evnia()
+
+    def _close_screen(self):
+        if self.screen is not None:
+            try:
+                self.screen.close()
+            except Exception:
+                pass
+        self.screen = None
+        self.screen_frame = None
+
+    def _push_screen(self, snap, t, temp):
+        screen = snap.get("screen")
+        if not screen or hw_locked():
+            return False
+        import ambiglow
+        n = ambiglow.LED_COUNT
+        if screen["bri"] <= 0:
+            if self.screen_lit:
+                self._ensure_screen()
+                self.screen.set_colors([(0, 0, 0)] * n)
+                self._close_screen()
+                self.screen_lit = False
+                return True
+            return False
+        cols = effects.render(
+            n, snap["mode"], t, screen["color"], screen["bri"], snap["speed"],
+            state=self.fx_screen, temp_c=temp)
+        if cols == self.screen_frame:
+            return False
+        self._ensure_screen()
+        self.screen.set_colors(cols)
+        self.screen_frame = list(cols)
+        self.screen_lit = True
+        return True
+
+    def _restore_screen(self, snap):
+        if hw_locked():
+            raise RuntimeError("materiel occupe")
+        screen = snap.get("screen")
+        self.screen_frame = None
+        if not screen:
+            self._close_screen()
+            return
+        import ambiglow
+        if screen["bri"] <= 0:
+            colors = [(0, 0, 0)] * ambiglow.LED_COUNT
+        else:
+            r, g, b = screen["color"]
+            bri = int(screen["bri"])
+            colors = [(r * bri // 100, g * bri // 100, b * bri // 100)] * ambiglow.LED_COUNT
+        self._ensure_screen()
+        self.screen.set_colors(colors)
+        self._close_screen()
 
     def _restore_gpu(self, snap):
         if hw_locked():

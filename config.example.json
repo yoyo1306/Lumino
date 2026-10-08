@@ -23,5 +23,12 @@
     "mode": "static",
     "speed": 4,
     "unscaled": true
+  },
+  "ambiglow_last": {
+    "r": 0,
+    "g": 170,
+    "b": 255,
+    "brightness": 100,
+    "unscaled": true
   }
 }

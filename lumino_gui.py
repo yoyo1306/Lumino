@@ -17,6 +17,7 @@ import tkinter as tk
 import winreg
 from tkinter import colorchooser, filedialog, messagebox
 
+import ambiglow
 import blackwell
 import effects
 
@@ -32,11 +33,7 @@ RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "Lumino"
 STARTUP_LNK = "Lumino.lnk"
 
-PRESETS = [
-    "#ff0000", "#ff7f00", "#ffd60a", "#22c55e",
-    "#00d5ff", "#2b6cff", "#7c3aed", "#ff2fb3",
-    "#ffffff", "#111827",
-]
+PRESETS = [ambiglow.COLOR_HEX[value] for value, _name in ambiglow.COLORS if value in ambiglow.COLOR_HEX]
 MODE_CHOICES = tuple(effects.MODE_LABELS[m] for m in effects.MODES)
 
 
@@ -252,6 +249,12 @@ def aura_apply(parts, r, g, b, brightness100):
     return {"r": r, "g": g, "b": b, "brightness": bri, "unscaled": True}
 
 
+def screen_apply(r, g, b, brightness100):
+    """Couleur unie sur l'Ambiglow. L'OSD de l'écran doit être en Static Mode."""
+    import ambiglow
+    return ambiglow.apply_color(r, g, b, brightness100)
+
+
 def _saved_color(r, g, b, bri, mode, speed):
     return {"r": r, "g": g, "b": b, "brightness": bri,
             "mode": mode, "speed": speed, "unscaled": True}
@@ -394,11 +397,12 @@ NAV = (
     ("cm", "Carte mère"),
     ("corsair", "Waterblock"),
     ("fans", "Ventilos"),
+    ("screen", "Ambiglow"),
     ("lcd", "Image"),
 )
 TITLES = {
     "all": ("Tout synchroniser",
-            "Même couleur et même effet, en même temps, sur le GPU, la carte mère, le waterblock et les ventilos."),
+            "Même couleur et même effet, en même temps, sur le GPU, la carte mère, le waterblock, les ventilos et l'Ambiglow."),
     "gpu": ("Carte graphique",
             "Même effet que les autres. En statique, la couleur est gravée sur la carte."),
     "cm": ("Carte mère",
@@ -407,6 +411,9 @@ TITLES = {
                "Pompe Titan et anneau. Les deux RX ont leur page. iCUE fermé."),
     "fans": ("Ventilos Corsair",
              "Les deux RX ensemble. Même effet que le waterblock, couleur et luminosité à part."),
+    "screen": ("Ambiglow",
+               "Modes du menu Philips, envoyés par le DisplayPort. "
+               "Clique un mode : le halo change tout de suite."),
 }
 APPLY_LABELS = {
     "all": "Tout appliquer",
@@ -414,6 +421,7 @@ APPLY_LABELS = {
     "cm": "Appliquer la CM",
     "corsair": "Appliquer le waterblock",
     "fans": "Appliquer les ventilos",
+    "screen": "Appliquer l'Ambiglow",
 }
 
 
@@ -495,6 +503,8 @@ class App(tk.Tk):
         except (TypeError, ValueError):
             gpu_bri = 100
         gpu_hex = hx(last, "#00aaff")
+        sc = cfg.get("ambiglow_last") if isinstance(cfg.get("ambiglow_last"), dict) else {}
+        sc_hex, sc_bri = stored_color(sc, gpu_hex, gpu_bri)
         fx = cfg.get("effect") if isinstance(cfg.get("effect"), dict) else {}
         mode = str(fx.get("mode", co.get("mode", "static")))
         if mode not in effects.MODES:
@@ -509,6 +519,7 @@ class App(tk.Tk):
             "cm": {"hex": cm_hex, "bri": cm_bri},
             "corsair": {"hex": co_hex, "bri": co_bri, "mode": mode, "speed": speed},
             "fans": {"hex": fan_hex, "bri": fan_bri},
+            "screen": {"hex": sc_hex, "bri": sc_bri},
         }
 
     def _build(self):
@@ -591,12 +602,15 @@ class App(tk.Tk):
         self.presets_fr = tk.Frame(self.crow)
         self.presets_fr.pack(side="left")
         self.preset_dots = []
+        self._bubble_photos = []
         for col in PRESETS:
             c = tk.Canvas(self.presets_fr, width=28, height=28, highlightthickness=0, bd=0, cursor="hand2")
             c.pack(side="left", padx=2)
-            oid = c.create_oval(4, 4, 24, 24, width=2)
+            photo = self._bubble_photo(col, False)
+            iid = c.create_image(14, 14, image=photo)
             c.bind("<Button-1>", lambda _e, hx=col: self._set_hex(hx))
-            self.preset_dots.append((col, c, oid))
+            self.preset_dots.append((col, c, iid))
+            self._bubble_photos.append(photo)
         self.hex_var = tk.StringVar()
         tools = tk.Frame(self.crow)
         tools.pack(side="right")
@@ -657,6 +671,63 @@ class App(tk.Tk):
         self.lcd_bri_w.bind("<ButtonRelease-1>", self._lcd_bri_commit)
         self.lcd_view = tk.Canvas(self.lcd_panel, width=240, height=240, highlightthickness=0, bd=0)
         self.lcd_view.pack(pady=(16, 0))
+
+        self.ambi_mode = None
+        self.ambi_color = None
+        self.ambi_bri = None
+        self.ambi_speed = None
+        self._ambi_speed_shown = False
+        self.ambi_panel = tk.Frame(ed)
+        self.ambi_mode_lbl = tk.Label(self.ambi_panel, text="Mode", font=("Segoe UI", 9), anchor="w")
+        self.ambi_mode_lbl.pack(fill="x", pady=(0, 6))
+        self.ambi_mode_grid = tk.Frame(self.ambi_panel)
+        self.ambi_mode_grid.pack(fill="x")
+        self.ambi_mode_btns = {}
+        for i, (value, label) in enumerate(ambiglow.LIGHT_MODES):
+            b = tk.Button(self.ambi_mode_grid, text=label, relief="flat", bd=0, cursor="hand2",
+                          font=("Segoe UI", 9),
+                          command=lambda v=value: self._set_ambi_mode(v))
+            b.grid(row=i // 2, column=i % 2, sticky="ew", padx=3, pady=3, ipady=4)
+            self.ambi_mode_btns[value] = b
+        self.ambi_mode_grid.columnconfigure(0, weight=1)
+        self.ambi_mode_grid.columnconfigure(1, weight=1)
+        self.ambi_color_lbl = tk.Label(self.ambi_panel, text="Couleur", font=("Segoe UI", 9), anchor="w")
+        self.ambi_color_lbl.pack(fill="x", pady=(14, 6))
+        self.ambi_color_grid = tk.Frame(self.ambi_panel)
+        self.ambi_color_grid.pack(fill="x")
+        self.ambi_color_btns = {}
+        for i, (value, label) in enumerate(ambiglow.COLORS):
+            b = tk.Button(self.ambi_color_grid, text=label, relief="flat", bd=0, cursor="hand2",
+                          font=("Segoe UI", 9),
+                          command=lambda v=value: self._set_ambi_color(v))
+            b.grid(row=i // 4, column=i % 4, sticky="ew", padx=3, pady=3, ipady=3)
+            self.ambi_color_btns[value] = b
+        for col in range(4):
+            self.ambi_color_grid.columnconfigure(col, weight=1)
+        self.ambi_bri_lbl = tk.Label(self.ambi_panel, text="Luminosité", font=("Segoe UI", 9), anchor="w")
+        self.ambi_bri_lbl.pack(fill="x", pady=(14, 6))
+        self.ambi_bri_grid = tk.Frame(self.ambi_panel)
+        self.ambi_bri_grid.pack(fill="x")
+        self.ambi_bri_btns = {}
+        for i, (value, label) in enumerate(ambiglow.BRIGHTNESS_LEVELS):
+            b = tk.Button(self.ambi_bri_grid, text=label, relief="flat", bd=0, cursor="hand2",
+                          font=("Segoe UI", 9),
+                          command=lambda v=value: self._set_ambi_brightness(v))
+            b.grid(row=0, column=i, sticky="ew", padx=3, pady=3, ipady=4)
+            self.ambi_bri_btns[value] = b
+        for col in range(3):
+            self.ambi_bri_grid.columnconfigure(col, weight=1)
+        self.ambi_speed_lbl = tk.Label(self.ambi_panel, text="Vitesse", font=("Segoe UI", 9), anchor="w")
+        self.ambi_speed_grid = tk.Frame(self.ambi_panel)
+        self.ambi_speed_btns = {}
+        for i, (value, label) in enumerate(ambiglow.SPEED_LEVELS):
+            b = tk.Button(self.ambi_speed_grid, text=label, relief="flat", bd=0, cursor="hand2",
+                          font=("Segoe UI", 9),
+                          command=lambda v=value: self._set_ambi_speed(v))
+            b.grid(row=0, column=i, sticky="ew", padx=3, pady=3, ipady=4)
+            self.ambi_speed_btns[value] = b
+        for col in range(3):
+            self.ambi_speed_grid.columnconfigure(col, weight=1)
 
         self.fx = tk.Frame(ed)
         self.mode_lbl = tk.Label(self.fx, text="Mode", font=("Segoe UI", 9), anchor="w")
@@ -727,16 +798,162 @@ class App(tk.Tk):
                                  activebackground=p["accent"], highlightthickness=0)
 
     def _show_lcd_editor(self):
-        for w in (self.preview, self.color_lbl, self.crow, self.brow, self.bri_bar, self.fx):
+        for w in (self.preview, self.color_lbl, self.crow, self.brow, self.bri_bar, self.fx, self.ambi_panel):
             w.pack_forget()
+        self._ensure_apply_packed()
         self.lcd_panel.pack(fill="both", expand=True, before=self.actions)
         self.apply_btn.configure(text="Afficher")
         self.off_btn.configure(text="Fond enregistré")
         self._paint_lcd_widgets()
         self._paint_lcd_preview()
 
+    def _ensure_apply_packed(self):
+        if not self.apply_btn.winfo_ismapped():
+            self.apply_btn.pack(side="left", expand=True, fill="x", ipady=8, padx=(0, 6), before=self.off_btn)
+
+    def _show_ambi_editor(self):
+        for w in (self.preview, self.color_lbl, self.crow, self.brow, self.bri_bar, self.fx, self.lcd_panel):
+            w.pack_forget()
+        self.apply_btn.pack_forget()
+        self.ambi_panel.pack(fill="both", expand=True, before=self.actions)
+        self.off_btn.configure(text="Éteindre")
+        self._paint_ambi()
+        self._read_ambi()
+
+    def _paint_ambi(self):
+        if not getattr(self, "ambi_mode_btns", None):
+            return
+        for value, btn in self.ambi_mode_btns.items():
+            self._style_chip(btn, value == self.ambi_mode)
+        colors_on = self.ambi_mode in ambiglow.COLOR_MODES
+        for value, btn in self.ambi_color_btns.items():
+            if colors_on:
+                btn.configure(state=tk.NORMAL, cursor="hand2")
+                self._style_chip(btn, value == self.ambi_color)
+            else:
+                self._style_disabled(btn)
+        for value, btn in self.ambi_bri_btns.items():
+            self._style_chip(btn, value == self.ambi_bri)
+        for value, btn in self.ambi_speed_btns.items():
+            self._style_chip(btn, value == self.ambi_speed)
+        self._sync_ambi_speed()
+
+    def _sync_ambi_speed(self):
+        show = self.ambi_mode in ambiglow.SPEED_MODES
+        if show and not self._ambi_speed_shown:
+            self.ambi_speed_lbl.pack(fill="x", pady=(14, 6))
+            self.ambi_speed_grid.pack(fill="x")
+            self._ambi_speed_shown = True
+        elif not show and self._ambi_speed_shown:
+            self.ambi_speed_lbl.pack_forget()
+            self.ambi_speed_grid.pack_forget()
+            self._ambi_speed_shown = False
+
+    def _read_ambi(self):
+        self._ambi_gen = getattr(self, "_ambi_gen", 0) + 1
+        gen = self._ambi_gen
+
+        def _t():
+            try:
+                mode = ambiglow.get_light_mode()
+                color = ambiglow.get_color()
+                bri = ambiglow.get_brightness()
+                speed = ambiglow.get_speed() if mode in ambiglow.SPEED_MODES else None
+                err = None
+            except Exception as e:  # noqa: BLE001
+                mode = color = bri = speed = None
+                err = str(e)
+
+            def ui():
+                if gen != self._ambi_gen or self.sel != "screen":
+                    return
+                if err:
+                    self.done(err, "err")
+                    return
+                self.ambi_mode = mode
+                self.ambi_color = color
+                self.ambi_bri = bri
+                self.ambi_speed = speed
+                self._paint_ambi()
+                name = dict(ambiglow.LIGHT_MODES).get(mode, str(mode))
+                self.done(f"Mode actuel : {name}")
+
+            try:
+                self.after(0, ui)
+            except tk.TclError:
+                pass
+
+        threading.Thread(target=_t, daemon=True).start()
+
+    def _set_ambi_mode(self, value):
+        self._ambi_gen = getattr(self, "_ambi_gen", 0) + 1
+        label = dict(ambiglow.LIGHT_MODES).get(value, str(value))
+
+        def _fn():
+            ambiglow.set_light_mode(value)
+            speed = ambiglow.get_speed() if value in ambiglow.SPEED_MODES else None
+
+            def ui():
+                self.ambi_mode = value
+                if speed is not None:
+                    self.ambi_speed = speed
+                self._paint_ambi()
+
+            return f"Ambiglow : {label}", ui
+
+        self.run_bg(_fn)
+
+    def _set_ambi_color(self, value):
+        if self.ambi_mode not in ambiglow.COLOR_MODES:
+            return
+        self._ambi_gen = getattr(self, "_ambi_gen", 0) + 1
+        label = dict(ambiglow.COLORS).get(value, str(value))
+
+        def _fn():
+            ambiglow.set_color(value)
+
+            def ui():
+                self.ambi_color = value
+                self._paint_ambi()
+
+            return f"Couleur : {label}", ui
+
+        self.run_bg(_fn)
+
+    def _set_ambi_brightness(self, value):
+        self._ambi_gen = getattr(self, "_ambi_gen", 0) + 1
+        label = dict(ambiglow.BRIGHTNESS_LEVELS).get(value, str(value))
+
+        def _fn():
+            ambiglow.set_brightness(value)
+
+            def ui():
+                self.ambi_bri = value
+                self._paint_ambi()
+
+            return f"Luminosité : {label}", ui
+
+        self.run_bg(_fn)
+
+    def _set_ambi_speed(self, value):
+        self._ambi_gen = getattr(self, "_ambi_gen", 0) + 1
+        label = dict(ambiglow.SPEED_LEVELS).get(value, str(value))
+
+        def _fn():
+            ambiglow.set_speed(value)
+
+            def ui():
+                self.ambi_speed = value
+                self._paint_ambi()
+
+            return f"Vitesse : {label}", ui
+
+        self.run_bg(_fn)
+
     def _show_led_editor(self):
         self.lcd_panel.pack_forget()
+        self.ambi_panel.pack_forget()
+        self._ensure_apply_packed()
         self.preview.pack(fill="x", before=self.actions)
         self.color_lbl.pack(fill="x", pady=(14, 6), before=self.actions)
         self.crow.pack(fill="x", before=self.actions)
@@ -950,7 +1167,9 @@ class App(tk.Tk):
     def _paint(self):
         p = self.pal
         self.configure(bg=p["bg"])
-        for w in (self.shell, self.editor, self.editor_in, self.actions, self.fx, self.lcd_panel):
+        for w in (self.shell, self.editor, self.editor_in, self.actions, self.fx,
+                  self.lcd_panel, self.ambi_panel, self.ambi_mode_grid,
+                  self.ambi_color_grid, self.ambi_bri_grid, self.ambi_speed_grid):
             w.configure(bg=p["bg"])
         self.side.configure(bg=p["side"])
         self.side_in.configure(bg=p["side"])
@@ -982,6 +1201,11 @@ class App(tk.Tk):
         self.speed_row.configure(bg=p["bg"])
         self.mode_lbl.configure(bg=p["bg"], fg=p["muted"])
         self.speed_lbl.configure(bg=p["bg"], fg=p["muted"])
+        self.ambi_mode_lbl.configure(bg=p["bg"], fg=p["muted"])
+        self.ambi_color_lbl.configure(bg=p["bg"], fg=p["muted"])
+        self.ambi_bri_lbl.configure(bg=p["bg"], fg=p["muted"])
+        self.ambi_speed_lbl.configure(bg=p["bg"], fg=p["muted"])
+        self._paint_ambi()
         self.hex_entry.configure(bg=p["input"], fg=p["text"], insertbackground=p["text"],
                                  highlightthickness=1, highlightbackground=p["line"],
                                  highlightcolor=p["accent"])
@@ -1027,6 +1251,15 @@ class App(tk.Tk):
         else:
             btn.configure(bg=p["chip"], fg=p["text"],
                           activebackground=p["line"], activeforeground=p["text"])
+
+    def _style_disabled(self, btn):
+        p = self.pal
+        btn.configure(state=tk.DISABLED, cursor="arrow",
+                      bg=p["chip"], fg=p["muted"],
+                      disabledforeground=p["muted"],
+                      activebackground=p["chip"], activeforeground=p["muted"],
+                      highlightthickness=1, highlightbackground=p["line"],
+                      highlightcolor=p["line"])
 
     def _style_chip(self, btn, on):
         p = self.pal
@@ -1077,14 +1310,44 @@ class App(tk.Tk):
             row["pct"].configure(bg=bg, fg=p["muted"], text=f"{int(self.dev[key]['bri'])} %")
             row["dot"].create_oval(4, 4, 18, 18, fill=self.dev[key]["hex"], outline="")
 
+    def _bubble_photo(self, fill, selected):
+        """Cercle lissé. Le canvas de Tk ne lisse pas les ovales."""
+        from PIL import Image, ImageDraw, ImageTk
+
+        size = 28
+        scale = 4
+        big = size * scale
+
+        def rgba(hx):
+            hx = hx.lstrip("#")
+            return tuple(int(hx[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
+
+        img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        if selected:
+            draw.ellipse((1 * scale, 1 * scale, big - 1 * scale - 1, big - 1 * scale - 1),
+                         fill=rgba(self.pal["accent"]))
+            draw.ellipse((4 * scale, 4 * scale, big - 4 * scale - 1, big - 4 * scale - 1),
+                         fill=rgba(fill))
+        else:
+            draw.ellipse((3 * scale, 3 * scale, big - 3 * scale - 1, big - 3 * scale - 1),
+                         fill=rgba(fill))
+        resample = getattr(Image, "Resampling", Image).LANCZOS
+        img = img.resize((size, size), resample)
+        bg = Image.new("RGBA", (size, size), rgba(self.pal["bg"]))
+        out = Image.alpha_composite(bg, img).convert("RGB")
+        return ImageTk.PhotoImage(out)
+
     def _paint_presets(self):
         p = self.pal
         cur = self.dev[self.sel]["hex"].lower()
-        for col, canvas, oid in self.preset_dots:
+        photos = []
+        for col, canvas, iid in self.preset_dots:
             canvas.configure(bg=p["bg"])
-            on = col.lower() == cur
-            canvas.itemconfigure(oid, fill=col, outline=p["accent"] if on else p["bg"],
-                                 width=3 if on else 0)
+            photo = self._bubble_photo(col, col.lower() == cur)
+            photos.append(photo)
+            canvas.itemconfigure(iid, image=photo)
+        self._bubble_photos = photos
 
     def _paint_modes(self):
         cur = self.dev["corsair"]["mode"]
@@ -1151,6 +1414,13 @@ class App(tk.Tk):
             self.sub_lbl.configure(
                 text="Image ou GIF sur l'écran du Titan. 100 % couvre l'écran. iCUE et HydroScreen fermés.")
             self._show_lcd_editor()
+            self._paint_nav()
+            return
+        if self.sel == "screen":
+            self._show_ambi_editor()
+            title, sub = TITLES["screen"]
+            self.title_lbl.configure(text=title)
+            self.sub_lbl.configure(text=sub)
             self._paint_nav()
             return
         self._show_led_editor()
@@ -1392,6 +1662,8 @@ class App(tk.Tk):
         elif key == "fans":
             r, g, b, bri = self._rgb("fans")
             self._apply_fans(r, g, b, bri, self.dev["corsair"]["mode"], self.dev["corsair"]["speed"])
+        elif key == "screen":
+            self._apply_screen(*self._rgb("screen"))
         else:
             r, g, b, bri = self._rgb("corsair")
             self._apply_corsair(r, g, b, bri, self.dev["corsair"]["mode"], self.dev["corsair"]["speed"])
@@ -1400,17 +1672,19 @@ class App(tk.Tk):
         import corsair_keep
         errors = []
         hx = rgb_to_hex(r, g, b)
-        gpu_ok = cm_ok = co_ok = False
+        screen_idx = ambiglow.index_for_hex(hx)
+        gpu_ok = cm_ok = co_ok = screen_ok = False
         prev = effect_mode_in_config()
         save_config({
             "r": r, "g": g, "b": b, "brightness": bri,
             "cm_last": {"r": r, "g": g, "b": b, "brightness": bri, "unscaled": True},
+            "ambiglow_last": {"r": r, "g": g, "b": b, "brightness": bri, "unscaled": True},
             "effect": saved_effect(mode, speed),
         })
         taken = hardware_taken_by_sync(prev, mode)
         if taken:
             _log(f"SYNC {mode} r={r} g={g} b={b} bri={bri} v={speed}")
-            gpu_ok = cm_ok = True
+            gpu_ok = cm_ok = screen_ok = True
         else:
             try:
                 with corsair_keep.hw_hold():
@@ -1429,6 +1703,14 @@ class App(tk.Tk):
             except Exception as e:  # noqa: BLE001
                 errors.append(f"Carte mère : {e}")
                 _log(f"AURA erreur: {e}")
+            if screen_idx is not None:
+                try:
+                    ambiglow.set_color(screen_idx)
+                    _log(f"AMBIGLOW couleur {screen_idx} {hx}")
+                    screen_ok = True
+                except Exception as e:  # noqa: BLE001
+                    errors.append(f"Ambiglow : {e}")
+                    _log(f"AMBIGLOW erreur: {e}")
             if mode != "static":
                 errors.append("Effet non démarré, couleur statique envoyée")
         try:
@@ -1442,7 +1724,7 @@ class App(tk.Tk):
         except Exception as e:  # noqa: BLE001
             errors.append(f"Corsair : {e}")
             _log(f"CORSAIR erreur: {e}")
-        if not (gpu_ok or cm_ok or co_ok):
+        if not (gpu_ok or cm_ok or co_ok or screen_ok):
             raise RuntimeError(" ".join(errors))
 
         def ui():
@@ -1454,6 +1736,10 @@ class App(tk.Tk):
             if co_ok:
                 self._assign("corsair", hx, bri)
                 self._assign("fans", hx, bri)
+            if screen_ok:
+                self._assign("screen", hx, bri)
+                if not taken and screen_idx is not None:
+                    self.ambi_color = screen_idx
             self._refresh_after_apply()
 
         msg = f"Tout appliqué {r},{g},{b} à {bri} % ({effects.MODE_LABELS.get(mode, mode)})"
@@ -1566,6 +1852,34 @@ class App(tk.Tk):
 
         self.run_bg(_fn)
 
+    def _apply_screen(self, r, g, b, bri):
+        hx = rgb_to_hex(r, g, b)
+        mode, speed = self.dev["corsair"]["mode"], self.dev["corsair"]["speed"]
+
+        def _fn():
+            import corsair_keep
+            prev = effect_mode_in_config()
+            res = {"r": r, "g": g, "b": b, "brightness": bri, "unscaled": True}
+            save_config({"ambiglow_last": res, "effect": saved_effect(mode, speed)})
+            taken = hardware_taken_by_sync(prev, mode)
+            if not taken:
+                with corsair_keep.hw_hold():
+                    screen_apply(r, g, b, bri)
+            _log(f"AMBIGLOW r={r} g={g} b={b} bri={bri} mode={mode} fond={taken}")
+
+            def ui():
+                self._assign("screen", hx, bri)
+                self._refresh_after_apply()
+
+            label = effects.MODE_LABELS.get(mode, mode)
+            msg = f"Ambiglow {label} à {bri} %"
+            if mode != "static" and not taken:
+                msg += " — fond non démarré"
+                return msg, ui, "err"
+            return msg, ui
+
+        self.run_bg(_fn)
+
     def do_selected_off(self):
         if self.sel == "lcd":
             self._off_lcd_image()
@@ -1580,6 +1894,8 @@ class App(tk.Tk):
             self._off_cm()
         elif self.sel == "fans":
             self._off_fans()
+        elif self.sel == "screen":
+            self._set_ambi_mode(0)
         else:
             self._off_corsair()
 
@@ -1678,12 +1994,35 @@ class App(tk.Tk):
 
         self.run_bg(_fn)
 
+    def _off_screen(self):
+        r, g, b, _bri = self._rgb("screen")
+        hx = self.dev["screen"]["hex"]
+        mode, speed = self.dev["corsair"]["mode"], self.dev["corsair"]["speed"]
+
+        def _fn():
+            import corsair_keep
+            prev = effect_mode_in_config()
+            res = {"r": r, "g": g, "b": b, "brightness": 0, "unscaled": True}
+            save_config({"ambiglow_last": res, "effect": saved_effect(mode, speed)})
+            if not hardware_taken_by_sync(prev, mode):
+                with corsair_keep.hw_hold():
+                    screen_apply(r, g, b, 0)
+            _log("AMBIGLOW off")
+
+            def ui():
+                self._assign("screen", hx, 0)
+                self._refresh_after_apply()
+
+            return "Ambiglow éteint", ui
+
+        self.run_bg(_fn)
+
     def do_off(self):
         if self._busy:
             return
         if not messagebox.askyesno(
                 "Lumino",
-                "Éteindre le GPU, la carte mère, le waterblock et les ventilos ?\n\n"
+                "Éteindre le GPU, la carte mère, le waterblock, les ventilos et l'Ambiglow ?\n\n"
                 "Les couleurs et le mode restent en mémoire, "
                 "la luminosité passe à 0. Au prochain démarrage les LEDs "
                 "resteront éteintes tant que tu n'auras pas réappliqué.",
@@ -1694,30 +2033,33 @@ class App(tk.Tk):
         cm_r, cm_g, cm_b, _b = self._rgb("cm")
         co_r, co_g, co_b, _b = self._rgb("corsair")
         fan_r, fan_g, fan_b, _b = self._rgb("fans")
+        sc_r, sc_g, sc_b, _b = self._rgb("screen")
         mode, speed = self.dev["corsair"]["mode"], self.dev["corsair"]["speed"]
         gpu_hx, cm_hx = self.dev["gpu"]["hex"], self.dev["cm"]["hex"]
         co_hx, all_hx = self.dev["corsair"]["hex"], self.dev["all"]["hex"]
         fan_hx = self.dev["fans"]["hex"]
+        sc_hx = self.dev["screen"]["hex"]
         self.run_bg(lambda: self._all_off(
             gpu_r, gpu_g, gpu_b, gpu_hx, cm_r, cm_g, cm_b, cm_hx,
             co_r, co_g, co_b, co_hx, fan_r, fan_g, fan_b, fan_hx,
-            mode, speed, all_hx))
+            sc_r, sc_g, sc_b, sc_hx, mode, speed, all_hx))
 
     def _all_off(self, gpu_r, gpu_g, gpu_b, gpu_hx, cm_r, cm_g, cm_b, cm_hx,
                  co_r, co_g, co_b, co_hx, fan_r, fan_g, fan_b, fan_hx,
-                 mode, speed, all_hx):
+                 sc_r, sc_g, sc_b, sc_hx, mode, speed, all_hx):
         import corsair_keep
         errors = []
-        gpu_ok = cm_ok = co_ok = False
+        gpu_ok = cm_ok = co_ok = screen_ok = False
         prev = effect_mode_in_config()
         save_config({
             "r": gpu_r, "g": gpu_g, "b": gpu_b, "brightness": 0,
             "cm_last": {"r": cm_r, "g": cm_g, "b": cm_b, "brightness": 0, "unscaled": True},
+            "ambiglow_last": {"r": sc_r, "g": sc_g, "b": sc_b, "brightness": 0, "unscaled": True},
             "effect": saved_effect(mode, speed),
         })
         if hardware_taken_by_sync(prev, mode):
-            _log("OFF gpu+cm via fond")
-            gpu_ok = cm_ok = True
+            _log("OFF gpu+cm+ambiglow via fond")
+            gpu_ok = cm_ok = screen_ok = True
         else:
             try:
                 with corsair_keep.hw_hold():
@@ -1736,6 +2078,14 @@ class App(tk.Tk):
             except Exception as e:  # noqa: BLE001
                 errors.append(f"Carte mère : {e}")
                 _log(f"OFF cm erreur: {e}")
+            try:
+                with corsair_keep.hw_hold():
+                    screen_apply(sc_r, sc_g, sc_b, 0)
+                _log("OFF ambiglow")
+                screen_ok = True
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"Ambiglow : {e}")
+                _log(f"OFF ambiglow erreur: {e}")
         try:
             cres = corsair_apply(mode, speed, block=(co_r, co_g, co_b, 0),
                                  fans=(fan_r, fan_g, fan_b, 0))
@@ -1748,7 +2098,7 @@ class App(tk.Tk):
         except Exception as e:  # noqa: BLE001
             errors.append(f"Corsair : {e}")
             _log(f"OFF corsair erreur: {e}")
-        if not (gpu_ok or cm_ok or co_ok):
+        if not (gpu_ok or cm_ok or co_ok or screen_ok):
             raise RuntimeError(" ".join(errors))
 
         def ui():
@@ -1759,11 +2109,13 @@ class App(tk.Tk):
             if co_ok:
                 self._assign("corsair", co_hx, 0, mode, speed)
                 self._assign("fans", fan_hx, 0)
-            if gpu_ok and cm_ok and co_ok:
+            if screen_ok:
+                self._assign("screen", sc_hx, 0)
+            if gpu_ok and cm_ok and co_ok and screen_ok:
                 self._assign("all", all_hx, 0)
             self._refresh_after_apply()
 
-        if gpu_ok and cm_ok and co_ok and not errors:
+        if gpu_ok and cm_ok and co_ok and screen_ok and not errors:
             return "Tout éteint. Couleurs gardées, luminosité à 0.", ui, "ok"
         return "Éteint en partie — " + " ".join(errors), ui, "err"
 
@@ -1773,7 +2125,7 @@ class App(tk.Tk):
         if not messagebox.askyesno(
                 "Lumino",
                 "Arrêter le fond ?\n\n"
-                "Le GPU et la carte mère reviennent à leur couleur enregistrée. "
+                "Le GPU, la carte mère et l'Ambiglow reviennent à leur couleur enregistrée. "
                 "Le hub Corsair repasse sur les couleurs iCUE (Device Memory) "
                 "tant que Lumino ne réapplique pas.",
                 parent=self):
