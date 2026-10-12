@@ -1,5 +1,7 @@
 # Lumino — contrôle RGB local (RTX 5080 + ASUS Aura + Ambiglow)
 
+![Lumino — écran Tout synchroniser](docs/screenshot.png)
+
 App bureau Windows **sans GCC, sans OpenRGB, sans site web**.
 Parle directement au contrôleur LED via I2C interne du GPU (NvAPI Ex, port 1)
 et au contrôleur ASUS Aura en USB (HID).
