@@ -1307,6 +1307,10 @@ class App(tk.Tk):
                 fill = p["accent"] if self.lcd_image_on else p["line"]
                 row["dot"].create_oval(4, 4, 18, 18, fill=fill, outline="")
                 continue
+            if key == "screen":
+                row["pct"].configure(bg=bg, fg=p["muted"], text="")
+                row["dot"].create_oval(4, 4, 18, 18, fill=self.dev[key]["hex"], outline="")
+                continue
             row["pct"].configure(bg=bg, fg=p["muted"], text=f"{int(self.dev[key]['bri'])} %")
             row["dot"].create_oval(4, 4, 18, 18, fill=self.dev[key]["hex"], outline="")
 
