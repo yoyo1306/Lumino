@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.1 — 2026-10-16
+
+- Retire le pourcentage de la ligne Ambiglow dans la sidebar (n'a pas de sens, l'Ambiglow utilise Brillant / Plus brillant / Très brillant). Pastille couleur conservée.
+
 ## v1.2.0 — 2026-10-09
 
 Contrôle Ambiglow du Philips Evnia 27M2N8500 depuis Lumino, par le DisplayPort.
