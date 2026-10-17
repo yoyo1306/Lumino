@@ -402,6 +402,14 @@ SUB_MODE = 0x19
 SUB_COLOR = 0x1A
 SUB_BRIGHTNESS = 0x1C
 SUB_SPEED = 0x1D
+# Maximum renvoyé par l'écran pour chaque registre. Une réponse E2 d'un
+# autre registre, ou une sonde VCP 0x10, ne doit pas être prise pour la nôtre.
+_SUB_MAX = {
+    SUB_MODE: 0x07,
+    SUB_COLOR: 0x0D,
+    SUB_BRIGHTNESS: 0x02,
+    SUB_SPEED: 0x02,
+}
 _GET_DISPLAYS = 0x0078DBA2
 
 _nv = None
@@ -464,17 +472,36 @@ def _xfer(nv, gpu, mask, payload, read_n=0):
     return status, bytes(buf[:info.size])
 
 
+def _reply_value(data, sub):
+    """Valeur du registre, ou None si la trame n'est pas la sienne.
+    hdr2sdr lit la luminosité VCP 0x10 toutes les 400 ms sur ce bus."""
+    if len(data) < 11 or data[3] != 0x00 or data[4] != 0xE2:
+        return None
+    if data[7] != _SUB_MAX.get(sub):
+        return None
+    total = 0
+    for byte in data:
+        total ^= byte
+    if total != 0x50:
+        return None
+    return data[9]
+
+
 def _read_sub(nv, gpu, mask, sub):
     import time
     payload = [0x84, 0x01, 0xE2, 0xA0, sub]
     payload.append(_chk(payload))
-    _xfer(nv, gpu, mask, payload)
-    time.sleep(0.08)
-    _status, data = _xfer(nv, gpu, mask, [0] * 12, read_n=12)
-    # data[3] == 0 : code accepté. L'autre écran renvoie 1 et une valeur fantôme.
-    if len(data) < 10 or data[3] != 0x00 or data[4] != 0xE2:
-        return None
-    return data[9]
+    for _attempt in range(6):
+        _xfer(nv, gpu, mask, payload)
+        time.sleep(0.08)
+        _status, data = _xfer(nv, gpu, mask, [0] * 12, read_n=12)
+        value = _reply_value(data, sub)
+        if value is not None:
+            return value
+        # La sonde hdr2sdr dort 100 ms entre deux lectures. On la laisse finir.
+        foreign = len(data) >= 5 and data[4] == 0x10
+        time.sleep(0.12 if foreign or not any(data) else 0.05)
+    return None
 
 
 def _write_sub(nv, gpu, mask, sub, value):

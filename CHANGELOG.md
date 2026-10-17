@@ -3,6 +3,8 @@
 ## v1.2.2 — 2026-10-17
 
 - La barre de titre affiche l'icône Lumino à la place de la plume de Tk.
+- Le numéro de version est en bas à droite. « Prêt » reste visible quand la fenêtre est réduite.
+- La lecture Ambiglow ignore la sonde de luminosité d'hdr2sdr quand les deux se croisent sur le bus de l'écran.
 
 ## v1.2.1 — 2026-10-16
 

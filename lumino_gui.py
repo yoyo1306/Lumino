@@ -43,6 +43,7 @@ LCD_MEDIA = os.path.join(BASE, "lcd_media")
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "Lumino"
 STARTUP_LNK = "Lumino.lnk"
+VERSION = "1.2.2"
 
 PRESETS = [ambiglow.COLOR_HEX[value] for value, _name in ambiglow.COLORS if value in ambiglow.COLOR_HEX]
 MODE_CHOICES = tuple(effects.MODE_LABELS[m] for m in effects.MODES)
@@ -596,6 +597,14 @@ class App(tk.Tk):
                 w.bind("<Button-1>", lambda _e, k=key: self._select(k))
             self.nav[key] = {"frame": fr, "dot": dot, "name": lab, "pct": pct}
 
+        self.footer = tk.Frame(self.editor)
+        self.footer.pack(side="bottom", fill="x", padx=28, pady=(0, 8))
+        self.version_lbl = tk.Label(
+            self.footer, text="v" + VERSION, font=("Segoe UI", 8), anchor="e")
+        self.version_lbl.pack(side="right", padx=(16, 0))
+        self.status = tk.Label(self.footer, font=("Segoe UI", 9), anchor="w", justify="left")
+        self.status.pack(side="left", fill="x", expand=True)
+
         ed = tk.Frame(self.editor)
         ed.pack(fill="both", expand=True, padx=28, pady=22)
         self.editor_in = ed
@@ -775,8 +784,6 @@ class App(tk.Tk):
         self.off_btn = tk.Button(self.actions, text="Éteindre", command=self.do_selected_off,
                                  relief="flat", bd=0, cursor="hand2", font=("Segoe UI", 11))
         self.off_btn.pack(side="left", expand=True, fill="x", ipady=8, padx=(6, 0))
-        self.status = tk.Label(ed, font=("Segoe UI", 9), anchor="w", justify="left")
-        self.status.pack(fill="x", pady=(12, 0))
 
         self._busy_widgets = [self.apply_btn, self.off_btn, self.btn_off_all, self.btn_stop]
         self._fx_shown = None
@@ -1178,7 +1185,7 @@ class App(tk.Tk):
     def _paint(self):
         p = self.pal
         self.configure(bg=p["bg"])
-        for w in (self.shell, self.editor, self.editor_in, self.actions, self.fx,
+        for w in (self.shell, self.editor, self.editor_in, self.footer, self.actions, self.fx,
                   self.lcd_panel, self.ambi_panel, self.ambi_mode_grid,
                   self.ambi_color_grid, self.ambi_bri_grid, self.ambi_speed_grid):
             w.configure(bg=p["bg"])
@@ -1226,10 +1233,11 @@ class App(tk.Tk):
         self._style_accent(self.apply_btn)
         self._style_ghost(self.off_btn)
         self.status.configure(bg=p["bg"], fg=self._status_color(), text=self._status_text)
+        self.version_lbl.configure(bg=p["bg"], fg=p["muted"])
         try:
             wrap = max(280, self.editor.winfo_width() - 56)
             self.sub_lbl.configure(wraplength=wrap)
-            self.status.configure(wraplength=wrap)
+            self.status.configure(wraplength=self._status_wrap())
         except tk.TclError:
             pass
         self._paint_nav()
@@ -1283,6 +1291,14 @@ class App(tk.Tk):
                           activebackground=p["line"], activeforeground=p["text"],
                           highlightthickness=1, highlightbackground=p["line"],
                           highlightcolor=p["line"])
+
+    def _status_wrap(self, win_width=None):
+        ver = self.version_lbl.winfo_reqwidth()
+        if win_width is None:
+            width = self.editor.winfo_width()
+        else:
+            width = win_width - 237
+        return max(160, width - 56 - ver - 16)
 
     def _status_color(self):
         p = self.pal
@@ -1568,7 +1584,7 @@ class App(tk.Tk):
         try:
             wrap = max(280, event.width - 300)
             self.sub_lbl.configure(wraplength=wrap)
-            self.status.configure(wraplength=wrap)
+            self.status.configure(wraplength=self._status_wrap(event.width))
         except tk.TclError:
             pass
         if self._geo_after is not None:
