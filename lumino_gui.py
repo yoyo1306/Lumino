@@ -26,6 +26,17 @@ BASE = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, "frozen"
 sys.path.insert(0, BASE)
 os.chdir(BASE)
 
+
+def _window_icon():
+    """Icône de la fenêtre. --icon ne change que le fichier exe."""
+    name = "lumino.ico"
+    if getattr(sys, "frozen", False):
+        bundled = os.path.join(getattr(sys, "_MEIPASS", ""), name)
+        if os.path.isfile(bundled):
+            return bundled
+    beside = os.path.join(BASE, name)
+    return beside if os.path.isfile(beside) else None
+
 CONFIG_PATH = os.path.join(BASE, "config.json")
 LOG_PATH = os.path.join(BASE, "lumino.log")
 LCD_MEDIA = os.path.join(BASE, "lcd_media")
@@ -441,12 +452,12 @@ class App(tk.Tk):
         self._fond_on = False
         self.lcd_on = False
         self.sel = "all"
-        try:
-            ico = os.path.join(BASE, "lumino.ico")
-            if os.path.isfile(ico):
+        ico = _window_icon()
+        if ico:
+            try:
                 self.iconbitmap(default=ico)
-        except tk.TclError:
-            pass
+            except tk.TclError:
+                pass
 
         cfg = load_config()
         theme = cfg.get("theme")

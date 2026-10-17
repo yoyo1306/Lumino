@@ -49,7 +49,7 @@ sans changer le mode Ambiglow. Le mode de l'écran doit accepter une couleur.
 
 ```powershell
 pip install pyinstaller hidapi pillow
-pyinstaller --noconfirm --clean --onefile --windowed --name Lumino --icon lumino.ico --hidden-import hid --hidden-import ambiglow --hidden-import apply_boot --hidden-import blackwell --hidden-import nvapi --hidden-import aura --hidden-import corsair_link --hidden-import corsair_keep --hidden-import effects lumino_gui.py
+pyinstaller --noconfirm --clean --onefile --windowed --name Lumino --icon lumino.ico --add-data "lumino.ico;." --hidden-import hid --hidden-import ambiglow --hidden-import apply_boot --hidden-import blackwell --hidden-import nvapi --hidden-import aura --hidden-import corsair_link --hidden-import corsair_keep --hidden-import effects lumino_gui.py
 copy dist\Lumino.exe Lumino.exe
 ```
 
