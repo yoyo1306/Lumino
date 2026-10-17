@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.2 — 2026-10-17
+
+- La barre de titre affiche l'icône Lumino à la place de la plume de Tk.
+
 ## v1.2.1 — 2026-10-16
 
 - Retire le pourcentage de la ligne Ambiglow dans la sidebar (n'a pas de sens, l'Ambiglow utilise Brillant / Plus brillant / Très brillant). Pastille couleur conservée.
