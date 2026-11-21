@@ -1,0 +1,1048 @@
+<Window
+    x:Class="Lumino.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Lumino">
+
+    <Grid
+        x:Name="RootGrid"
+        Background="Transparent"
+        KeyDown="RootGrid_KeyDown">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="44" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom Windows 11 Title Bar -->
+        <Grid
+            x:Name="TitleBarGrid"
+            Grid.Row="0"
+            Height="44"
+            Loaded="TitleBarGrid_Loaded"
+            SizeChanged="TitleBarGrid_SizeChanged">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition x:Name="CaptionButtonsSpacerColumn" Width="138" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Draggable title region -->
+            <Grid x:Name="TitleBarDragArea" Grid.Column="0" Background="Transparent" Padding="16,0,8,0">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Image
+                        x:Name="TitleBarIcon"
+                        Width="18"
+                        Height="18"
+                        VerticalAlignment="Center" />
+                    <TextBlock
+                        Text="Lumino"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <TextBlock
+                        Text="•  Éclairage RGB &amp; Écran LCD"
+                        FontSize="12"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Header buttons (Passthrough region) -->
+            <StackPanel
+                x:Name="TitleBarActionsPanel"
+                Grid.Column="1"
+                Orientation="Horizontal"
+                Spacing="4"
+                VerticalAlignment="Center"
+                Margin="0,0,6,0">
+                <Button
+                    x:Name="ThemeButton"
+                    Width="32"
+                    Height="30"
+                    Padding="0"
+                    CornerRadius="6"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    IsTabStop="False"
+                    Click="ThemeButton_Click"
+                    ToolTipService.ToolTip="Basculer thème clair / sombre">
+                    <FontIcon
+                        x:Name="ThemeIcon"
+                        FontFamily="Segoe Fluent Icons"
+                        Glyph="&#xE706;"
+                        FontSize="14" />
+                </Button>
+                <Button
+                    x:Name="OptionsButton"
+                    Width="32"
+                    Height="30"
+                    Padding="0"
+                    CornerRadius="6"
+                    Background="Transparent"
+                    BorderThickness="1"
+                    BorderBrush="Transparent"
+                    IsTabStop="False"
+                    Click="OptionsButton_Click"
+                    ToolTipService.ToolTip="Options">
+                    <FontIcon
+                        FontFamily="Segoe Fluent Icons"
+                        Glyph="&#xE713;"
+                        FontSize="14" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Workspace (Sidebar + Editor) -->
+        <Grid x:Name="MainWorkspace" Grid.Row="1" Padding="16,4,16,16" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="232" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Navigation Sidebar -->
+            <Border
+                x:Name="SidebarCard"
+                Grid.Column="0"
+                CornerRadius="12"
+                Padding="10,12"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Keepalive live pill -->
+                    <Border
+                        x:Name="KeepaliveBadge"
+                        Grid.Row="0"
+                        CornerRadius="8"
+                        Padding="10,7"
+                        BorderThickness="1"
+                        Margin="2,0,2,4">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Ellipse
+                                x:Name="KeepaliveDot"
+                                Grid.Column="0"
+                                Width="8"
+                                Height="8"
+                                VerticalAlignment="Center" />
+                            <TextBlock
+                                x:Name="KeepaliveText"
+                                Grid.Column="1"
+                                Text="Fond arrêté"
+                                FontSize="12"
+                                FontWeight="SemiBold"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- 7 Device Navigation Items -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="NavItemsPanel" Spacing="4" />
+                    </ScrollViewer>
+
+                    <!-- Sidebar bottom controls -->
+                    <StackPanel Grid.Row="2" Spacing="8" Margin="2,6,2,0">
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="2,0,2,2" />
+                        <Button
+                            x:Name="AllOffButton"
+                            HorizontalAlignment="Stretch"
+                            Height="36"
+                            CornerRadius="8"
+                            Click="AllOffButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE7E8;" FontSize="13" />
+                                <TextBlock Text="Tout éteindre" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock
+                            x:Name="SidebarVersionText"
+                            Text="Lumino v2.0.0"
+                            FontSize="11"
+                            HorizontalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Right Content Area -->
+            <Grid Grid.Column="1" RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- 1. LED Editor View (all / gpu / cm / corsair / fans) -->
+                <ScrollViewer
+                    x:Name="LedEditorView"
+                    Grid.Row="0"
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="0,0,4,0">
+                    <StackPanel Spacing="12">
+                        <!-- Page Header -->
+                        <StackPanel Spacing="3" Margin="2,2,2,0">
+                            <TextBlock
+                                x:Name="LedTitleText"
+                                Text="Tout synchroniser"
+                                FontSize="22"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                            <TextBlock
+                                x:Name="LedSubtitleText"
+                                Text="Même couleur et même effet sur tous les périphériques en même temps."
+                                FontSize="12.5"
+                                TextWrapping="Wrap"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+
+                        <!-- Animated LED Preview Strip -->
+                        <Border
+                            x:Name="PreviewStripCard"
+                            CornerRadius="10"
+                            Padding="10,10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <Grid ColumnSpacing="4" Height="16" x:Name="PreviewStripGrid" />
+                        </Border>
+
+                        <!-- Card: Couleur & Luminosité -->
+                        <Border
+                            CornerRadius="12"
+                            Padding="18,16"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <StackPanel Spacing="14">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        Text="Couleur"
+                                        FontSize="14"
+                                        FontWeight="SemiBold"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+
+                                    <!-- Custom color picker + Hex box -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Border
+                                            x:Name="CurrentColorSwatch"
+                                            Width="24"
+                                            Height="24"
+                                            CornerRadius="12"
+                                            BorderThickness="1.5"
+                                            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                            VerticalAlignment="Center" />
+                                        <TextBox
+                                            x:Name="HexInputBox"
+                                            Width="96"
+                                            Height="32"
+                                            FontFamily="Consolas"
+                                            FontSize="13"
+                                            Text="#e66922"
+                                            MaxLength="7"
+                                            VerticalContentAlignment="Center"
+                                            KeyDown="HexInputBox_KeyDown"
+                                            LostFocus="HexInputBox_LostFocus" />
+                                        <Button
+                                            x:Name="PickColorButton"
+                                            Height="32"
+                                            Padding="12,0"
+                                            CornerRadius="6"
+                                            Content="Choisir…">
+                                            <Button.Flyout>
+                                                <Flyout x:Name="ColorPickerFlyout" Placement="BottomEdgeAlignedRight">
+                                                    <StackPanel Spacing="10" Width="280">
+                                                        <ColorPicker
+                                                            x:Name="FluentColorPicker"
+                                                            ColorSpectrumShape="Ring"
+                                                            IsColorChannelTextInputVisible="True"
+                                                            IsHexInputVisible="True"
+                                                            IsAlphaEnabled="False"
+                                                            IsMoreButtonVisible="False"
+                                                            ColorChanged="FluentColorPicker_ColorChanged" />
+                                                        <Button
+                                                            Content="Valider"
+                                                            Style="{StaticResource AccentButtonStyle}"
+                                                            HorizontalAlignment="Stretch"
+                                                            Click="ColorPickerConfirm_Click" />
+                                                    </StackPanel>
+                                                </Flyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- 13 Philips/Lumino Preset Bubbles -->
+                                <Grid
+                                    x:Name="PresetsGrid"
+                                    Padding="0,2" />
+
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                                <!-- Luminosité Slider -->
+                                <Grid ColumnSpacing="14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="58" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        Grid.Column="0"
+                                        Text="Luminosité"
+                                        FontSize="13.5"
+                                        FontWeight="SemiBold"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                    <Slider
+                                        x:Name="BrightnessSlider"
+                                        Grid.Column="1"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        StepFrequency="1"
+                                        TickFrequency="10"
+                                        IsThumbToolTipEnabled="False"
+                                        VerticalAlignment="Center"
+                                        ValueChanged="BrightnessSlider_ValueChanged" />
+                                    <TextBlock
+                                        x:Name="BrightnessValueText"
+                                        Grid.Column="2"
+                                        Text="50 %"
+                                        FontSize="13.5"
+                                        FontWeight="SemiBold"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Typography.NumeralAlignment="Tabular"
+                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: Effet & Vitesse -->
+                        <Border
+                            CornerRadius="12"
+                            Padding="18,16"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <StackPanel Spacing="12">
+                                <TextBlock
+                                    Text="Effet"
+                                    FontSize="14"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+
+                                <Grid x:Name="ModesGrid" RowSpacing="8" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                </Grid>
+
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,2" />
+
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        x:Name="SpeedLabelText"
+                                        Grid.Column="0"
+                                        Text="Vitesse"
+                                        FontSize="13.5"
+                                        FontWeight="SemiBold"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                    <Grid x:Name="SpeedsGrid" Grid.Column="1" ColumnSpacing="5" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Primary Action Buttons -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Button
+                                x:Name="ApplyButton"
+                                Grid.Column="0"
+                                Height="40"
+                                CornerRadius="8"
+                                HorizontalAlignment="Stretch"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Click="ApplyButton_Click">
+                                <TextBlock
+                                    x:Name="ApplyButtonText"
+                                    Text="Tout appliquer"
+                                    FontSize="14"
+                                    FontWeight="SemiBold" />
+                            </Button>
+                            <Button
+                                x:Name="DeviceOffButton"
+                                Grid.Column="1"
+                                Height="40"
+                                MinWidth="124"
+                                Margin="10,0,0,0"
+                                CornerRadius="8"
+                                Click="DeviceOffButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE7E8;" FontSize="13" />
+                                    <TextBlock Text="Éteindre" FontSize="13.5" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- 2. Ambiglow Editor View (Philips Evnia 27M2N8500 OSD DisplayPort + USB status) -->
+                <ScrollViewer
+                    x:Name="AmbiglowEditorView"
+                    Grid.Row="0"
+                    Visibility="Collapsed"
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="0,0,4,0">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="3" Margin="2,2,2,0">
+                                <TextBlock
+                                    Text="Ambiglow"
+                                    FontSize="22"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                <TextBlock
+                                    Text="Modes du menu Philips envoyés via DisplayPort. Un clic applique immédiatement le réglage."
+                                    FontSize="12.5"
+                                    TextWrapping="Wrap"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <Border
+                                x:Name="AmbiUsbBadge"
+                                Grid.Column="1"
+                                CornerRadius="8"
+                                Padding="10,6"
+                                BorderThickness="1"
+                                VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <Ellipse x:Name="AmbiUsbDot" Width="7" Height="7" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="AmbiUsbText" Text="USB ENE : vérification…" FontSize="11.5" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Border>
+                            <Button
+                                x:Name="AmbiRefreshButton"
+                                Grid.Column="2"
+                                Height="32"
+                                Padding="10,0"
+                                CornerRadius="6"
+                                VerticalAlignment="Center"
+                                Click="AmbiRefreshButton_Click"
+                                ToolTipService.ToolTip="Relire l'état OSD sur l'écran">
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72C;" FontSize="13" />
+                            </Button>
+                        </Grid>
+
+                        <!-- Modes OSD -->
+                        <Border
+                            CornerRadius="12"
+                            Padding="18,16"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Mode lumineux (OSD)" FontSize="14" FontWeight="SemiBold" />
+                                <Grid x:Name="AmbiModesGrid" RowSpacing="8" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Couleurs OSD -->
+                        <Border
+                            CornerRadius="12"
+                            Padding="18,16"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <TextBlock x:Name="AmbiColorTitle" Text="Couleur OSD" FontSize="14" FontWeight="SemiBold" />
+                                <Grid x:Name="AmbiColorsGrid" RowSpacing="8" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Luminosité & Vitesse OSD -->
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border
+                                Grid.Column="0"
+                                CornerRadius="12"
+                                Padding="18,16"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="Luminosité OSD" FontSize="14" FontWeight="SemiBold" />
+                                    <Grid x:Name="AmbiBriGrid" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border
+                                Grid.Column="1"
+                                CornerRadius="12"
+                                Padding="18,16"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1">
+                                <StackPanel Spacing="10">
+                                    <TextBlock x:Name="AmbiSpeedTitle" Text="Vitesse OSD" FontSize="14" FontWeight="SemiBold" />
+                                    <Grid x:Name="AmbiSpeedGrid" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- 3. LCD Image / GIF Editor View -->
+                <ScrollViewer
+                    x:Name="LcdEditorView"
+                    Grid.Row="0"
+                    Visibility="Collapsed"
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="0,0,4,0">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="3" Margin="2,2,2,0">
+                                <TextBlock
+                                    Text="Écran LCD Corsair"
+                                    FontSize="22"
+                                    FontWeight="SemiBold"
+                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                <TextBlock
+                                    Text="Image fixe, GIF animé ou température GPU en direct sur l'écran circulaire 480×480."
+                                    FontSize="12.5"
+                                    TextWrapping="Wrap"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <Border
+                                x:Name="LcdStateBadge"
+                                Grid.Column="1"
+                                CornerRadius="8"
+                                Padding="10,6"
+                                BorderThickness="1"
+                                VerticalAlignment="Center">
+                                <TextBlock x:Name="LcdStateBadgeText" Text="Fond matériel" FontSize="12" FontWeight="SemiBold" />
+                            </Border>
+                        </Grid>
+
+                        <Border
+                            CornerRadius="12"
+                            Padding="20,18"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <Grid ColumnSpacing="24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Circular 220x220 LCD Preview Bezel -->
+                                <StackPanel Grid.Column="0" Spacing="8" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <Border
+                                        x:Name="LcdPreviewBezel"
+                                        Width="228"
+                                        Height="228"
+                                        CornerRadius="114"
+                                        Padding="4"
+                                        Background="#080A10"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="2">
+                                        <Grid>
+                                            <Border CornerRadius="110" Width="216" Height="216" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Image
+                                                    x:Name="LcdPreviewImage"
+                                                    Width="216"
+                                                    Height="216"
+                                                    Stretch="UniformToFill" />
+                                            </Border>
+                                            <TextBlock
+                                                x:Name="LcdPreviewPlaceholder"
+                                                Text="Aucune image"
+                                                FontSize="12"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Foreground="#9CA3AF" />
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock
+                                        x:Name="LcdFileNameText"
+                                        Text="Aucun fichier sélectionné"
+                                        FontSize="11.5"
+                                        MaxWidth="228"
+                                        TextTrimming="CharacterEllipsis"
+                                        HorizontalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <!-- Controls -->
+                                <StackPanel Grid.Column="1" Spacing="14" VerticalAlignment="Center">
+                                    <Button
+                                        x:Name="LcdPickFileButton"
+                                        Height="36"
+                                        CornerRadius="8"
+                                        HorizontalAlignment="Stretch"
+                                        Click="LcdPickFileButton_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB9F;" FontSize="14" />
+                                            <TextBlock Text="Choisir une image ou un GIF…" FontSize="13.5" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <!-- Scale / Zoom -->
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="58" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Taille" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <Slider
+                                            x:Name="LcdScaleSlider"
+                                            Grid.Column="1"
+                                            Minimum="25"
+                                            Maximum="200"
+                                            StepFrequency="1"
+                                            IsThumbToolTipEnabled="False"
+                                            VerticalAlignment="Center"
+                                            ValueChanged="LcdScaleSlider_ValueChanged"
+                                            PointerCaptureLost="LcdScaleSlider_Commit" />
+                                        <TextBlock
+                                            x:Name="LcdScaleValueText"
+                                            Grid.Column="2"
+                                            Text="100 %"
+                                            FontSize="13.5"
+                                            FontWeight="SemiBold"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Typography.NumeralAlignment="Tabular" />
+                                    </Grid>
+
+                                    <!-- Brightness -->
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="58" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Luminosité" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <Slider
+                                            x:Name="LcdBriSlider"
+                                            Grid.Column="1"
+                                            Minimum="0"
+                                            Maximum="100"
+                                            StepFrequency="1"
+                                            IsThumbToolTipEnabled="False"
+                                            VerticalAlignment="Center"
+                                            ValueChanged="LcdBriSlider_ValueChanged"
+                                            PointerCaptureLost="LcdBriSlider_Commit" />
+                                        <TextBlock
+                                            x:Name="LcdBriValueText"
+                                            Grid.Column="2"
+                                            Text="100 %"
+                                            FontSize="13.5"
+                                            FontWeight="SemiBold"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Typography.NumeralAlignment="Tabular" />
+                                    </Grid>
+
+                                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                                    <!-- GPU Temp toggle -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock Text="Température GPU en direct" FontSize="13.5" FontWeight="SemiBold" />
+                                            <TextBlock
+                                                Text="Remplace l'image par la température du GPU colorée selon l'échelle Lumino."
+                                                FontSize="11.5"
+                                                TextWrapping="Wrap"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                        <ToggleSwitch
+                                            x:Name="LcdTempToggle"
+                                            Grid.Column="1"
+                                            OnContent=""
+                                            OffContent=""
+                                            MinWidth="0"
+                                            VerticalAlignment="Center"
+                                            Toggled="LcdTempToggle_Toggled" />
+                                    </Grid>
+
+                                    <!-- Apply / Hardware Restore -->
+                                    <Grid ColumnSpacing="10" Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button
+                                            x:Name="LcdApplyButton"
+                                            Grid.Column="0"
+                                            Height="38"
+                                            CornerRadius="8"
+                                            HorizontalAlignment="Stretch"
+                                            Style="{StaticResource AccentButtonStyle}"
+                                            Content="Appliquer sur le LCD"
+                                            Click="LcdApplyButton_Click" />
+                                        <Button
+                                            x:Name="LcdRestoreButton"
+                                            Grid.Column="1"
+                                            Height="38"
+                                            Padding="14,0"
+                                            CornerRadius="8"
+                                            Content="Fond matériel"
+                                            Click="LcdRestoreButton_Click" />
+                                    </Grid>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Global Status Feedback Bar -->
+                <Border
+                    x:Name="StatusCard"
+                    Grid.Row="1"
+                    CornerRadius="10"
+                    Padding="14,10"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center">
+                            <Ellipse x:Name="StatusDot" Width="8" Height="8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ProgressRing x:Name="BusyRing" Width="14" Height="14" IsActive="False" Visibility="Collapsed" />
+                        </Grid>
+                        <TextBlock
+                            x:Name="StatusText"
+                            Grid.Column="1"
+                            Text="Prêt"
+                            FontSize="12.5"
+                            TextWrapping="Wrap"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Integrated Options Drawer (Windows 11 Settings style) -->
+        <Grid
+            x:Name="OptionsView"
+            Grid.Row="1"
+            Visibility="Collapsed"
+            Padding="18,6,18,16"
+            RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Options Header -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Button
+                    x:Name="OptionsBackButton"
+                    Width="36"
+                    Height="32"
+                    Padding="0"
+                    CornerRadius="6"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="OptionsBackButton_Click"
+                    ToolTipService.ToolTip="Retour">
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE72B;" FontSize="14" />
+                </Button>
+                <TextBlock
+                    Text="Options"
+                    FontSize="20"
+                    FontWeight="SemiBold"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+                <StackPanel Spacing="12" MaxWidth="780" HorizontalAlignment="Stretch">
+                    <!-- Démarrage & Processus de fond -->
+                    <Border
+                        CornerRadius="12"
+                        Padding="18,16"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Démarrage et arrière-plan" FontSize="14" FontWeight="SemiBold" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Lancer au démarrage de Windows" FontSize="13.5" FontWeight="SemiBold" />
+                                    <TextBlock
+                                        Text="Réapplique automatiquement les couleurs et relance le fond Corsair 10 s après l'ouverture de session."
+                                        FontSize="12"
+                                        TextWrapping="Wrap"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <ToggleSwitch
+                                    x:Name="OptBootToggle"
+                                    Grid.Column="1"
+                                    OnContent="Activé"
+                                    OffContent="Désactivé"
+                                    VerticalAlignment="Center"
+                                    Toggled="OptBootToggle_Toggled" />
+                            </Grid>
+
+                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Processus de fond Corsair &amp; synchronisation" FontSize="13.5" FontWeight="SemiBold" />
+                                    <TextBlock
+                                        x:Name="OptKeepaliveStatusText"
+                                        Text="État : arrêté"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <Button
+                                    x:Name="OptStartKeepaliveButton"
+                                    Grid.Column="1"
+                                    Height="32"
+                                    Padding="12,0"
+                                    CornerRadius="6"
+                                    Content="Démarrer le fond"
+                                    Click="OptStartKeepaliveButton_Click" />
+                                <Button
+                                    x:Name="OptStopKeepaliveButton"
+                                    Grid.Column="2"
+                                    Height="32"
+                                    Padding="12,0"
+                                    CornerRadius="6"
+                                    Content="Arrêter le fond"
+                                    Click="OptStopKeepaliveButton_Click" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Écran LCD Corsair -->
+                    <Border
+                        CornerRadius="12"
+                        Padding="18,16"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Écran LCD Corsair" FontSize="14" FontWeight="SemiBold" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Afficher la température GPU sur le LCD" FontSize="13.5" FontWeight="SemiBold" />
+                                    <TextBlock
+                                        Text="Affiche la température du GPU en direct à la place de l'image ou du GIF."
+                                        FontSize="12"
+                                        TextWrapping="Wrap"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <ToggleSwitch
+                                    x:Name="OptLcdTempToggle"
+                                    Grid.Column="1"
+                                    OnContent="Activé"
+                                    OffContent="Désactivé"
+                                    VerticalAlignment="Center"
+                                    Toggled="OptLcdTempToggle_Toggled" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Apparence & Stockage -->
+                    <Border
+                        CornerRadius="12"
+                        Padding="18,16"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="Apparence et stockage" FontSize="14" FontWeight="SemiBold" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Thème de l'interface" FontSize="13.5" FontWeight="SemiBold" />
+                                    <TextBlock
+                                        Text="Mémorisé dans config.json et appliqué instantanément avec le fond Mica."
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <Button x:Name="OptThemeLightBtn" Height="32" Padding="14,0" CornerRadius="6" Content="Clair" Click="OptThemeLightBtn_Click" />
+                                    <Button x:Name="OptThemeDarkBtn" Height="32" Padding="14,0" CornerRadius="6" Content="Sombre" Click="OptThemeDarkBtn_Click" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="OptStorageModeText" Text="Mode portable" FontSize="13.5" FontWeight="SemiBold" />
+                                    <TextBlock
+                                        x:Name="OptDataPathText"
+                                        Text=""
+                                        FontSize="11.5"
+                                        TextTrimming="CharacterEllipsis"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <Button
+                                    Grid.Column="1"
+                                    Height="32"
+                                    Padding="12,0"
+                                    CornerRadius="6"
+                                    Content="Ouvrir le dossier"
+                                    Click="OptOpenDataDirButton_Click" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Journal lumino.log -->
+                    <Border
+                        CornerRadius="12"
+                        Padding="18,16"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Journal d'activité (lumino.log)" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Button
+                                    Grid.Column="1"
+                                    Height="30"
+                                    Padding="10,0"
+                                    CornerRadius="6"
+                                    Content="Actualiser"
+                                    Click="OptRefreshLogButton_Click" />
+                            </Grid>
+                            <Border
+                                CornerRadius="8"
+                                Padding="10"
+                                Background="{ThemeResource LayerFillColorAltBrush}"
+                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                Height="150">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                    <TextBlock
+                                        x:Name="OptLogText"
+                                        FontFamily="Consolas"
+                                        FontSize="11.5"
+                                        IsTextSelectionEnabled="True"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

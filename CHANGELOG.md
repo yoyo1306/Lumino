@@ -1,4 +1,25 @@
-# Changelog
+# Changelog — Lumino
+
+## v2.0.0 — Modernisation Windows 11 (WinUI 3 / .NET 10)
+
+### Nouveautés & Architecture
+- Réécriture complète en **C# / .NET 10** (`net10.0-windows10.0.19041.0`, `x64`, `self-contained`) : **zéro prérequis** sur un PC Windows 11 vierge (ni Python, ni runtime .NET, ni Windows App Runtime à installer séparément).
+- Nouvelle interface native **WinUI 3** (style WinUI Gallery / Paramètres Windows 11) : fond **Mica**, barre de titre personnalisée avec zones `Passthrough`, icône native, accent système Windows 11, mode **Clair / Sombre** mémorisé, cartes Fluent arrondies et valeurs numériques tabulaires alignées.
+- Nouveau **tiroir Options** intégré en barre de titre : lancement au démarrage de Windows, démarrage/arrêt du processus de fond Corsair, bascule température GPU sur le LCD, thème Clair/Sombre, ouverture du dossier de données et visionneuse du journal `lumino.log`.
+- Instance unique via Mutex + Named Pipe : un second lancement ramène instantanément la fenêtre existante au premier plan.
+- Mode **portable** ou **installé dans `Program Files`** (`AppPaths`) : écrit sur place si le dossier est inscriptible, ou bascule automatiquement vers `%LOCALAPPDATA%\Lumino\` avec reprise de la configuration existante.
+- Communication UI ↔ Worker de fond via **Named Pipe** (`AuthenticatedUserSid` ReadWrite) avec repli fichier pour des mises à jour instantanées et un arrêt propre.
+- Véritable **installateur Windows 11 (Inno Setup 6)** : `Lumino-Setup-2.0.0.exe` (compression `lzma2/ultra64`, `WizardStyle=modern dynamic`, français), raccourci placé directement à la racine du Menu Démarrer sans sous-dossier ni raccourci Désinstaller, raccourci Bureau et option PATH (décochée par défaut), arrêt automatique des instances actives avant mise à jour, préservation de `config.json`.
+- Archivage des anciens scripts Python v1.2.2 dans `legacy/`.
+
+### Fonctionnalités conservées (v1.2.2)
+- **GPU Gigabyte RTX 5080 (Blackwell)** via `nvapi64.dll` I2C Ex (`0x75`, 6 zones, gravage statique, mode direct, vague matérielle, sonde thermique GPU).
+- **Carte mère ASUS Aura USB** (`0B05:19AF`, LEDs fixes + headers ARGB, statique persistant et direct temps réel).
+- **Corsair iCUE LINK System Hub** (`1B1C:0C3F`, pompe Titan + anneau LCD + 2× ventilateurs RX à couleurs/luminosités indépendantes, sans iCUE).
+- **Philips Evnia 27M2N8500 Ambiglow** : modes OSD DisplayPort DDC (8 modes, 14 couleurs, 3 luminosités, 3 vitesses, application immédiate au clic) + indicateur et pilotage USB WinUSB ENE (`0CF2:A201`, 30 LEDs).
+- **Écran LCD Corsair 480×480** (`0C4E` et modèles Elite/Titan) : image fixe, GIF animé avec aperçu circulaire temps réel, zoom, luminosité matérielle, mode température GPU et retour au fond matériel.
+- **7 effets synchronisés** (`Statique`, `Arc-en-ciel`, `Vague arc-en-ciel`, `Vague couleur`, `Pulsation`, `Ondulation`, `Température`) avec vitesse `1` à `10` et barre d’aperçu animée.
+- Modes CLI sans interface graphique : `--boot [--delay N] [--tries N] [--check]`, `--corsair-keepalive`, `--corsair-stop`.
 
 ## v1.2.2 — 2026-10-17
 

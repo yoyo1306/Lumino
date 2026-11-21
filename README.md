@@ -1,99 +1,70 @@
-# Lumino — contrôle RGB local (RTX 5080 + ASUS Aura + Ambiglow)
+# Lumino
 
-![Lumino — écran Tout synchroniser](docs/screenshot.png)
+Application Windows 11 (**WinUI 3 / .NET 10**) pour piloter et synchroniser l’éclairage RGB du PC et l’écran LCD Corsair sans iCUE ni suites constructeur.
 
-App bureau Windows **sans GCC, sans OpenRGB, sans site web**.
-Parle directement au contrôleur LED via I2C interne du GPU (NvAPI Ex, port 1)
-et au contrôleur ASUS Aura en USB (HID).
-L'Ambiglow du Philips Evnia 27M2N8500 passe par le DisplayPort.
+Aucun prérequis à installer sur un PC Windows 11 vierge (ni Python, ni runtime .NET, ni Windows App Runtime).
 
-Testé sur : `GV-N5080AORUSIF WD-16GD` (`VEN_10DE DEV_2C02 SUBSYS_41E2_1458`)
-+ ROG Strix B850-A (`0B05:19AF`).
+![Lumino — aperçu](apercu.png)
 
-Trio Corsair (Titan 240 LCD + 2x RX via Hub `1B1C:0C3F`) : tenu par
-`corsair_keep.py` en fond (statique : renvoi toutes les 4 s ; animé :
-environ 5 img/s, limite du protocole), iCUE fermé
-(autostart désactivé). Layout [pompe 20][anneau LCD 24][RX 8][RX 8].
-LCD via image hardware figee ou HydroScreen (open source).
-Vitesses : profil hardware du Hub (regler une fois en iCUE Device
-Memory Mode avant de fermer iCUE).
+## Installation (PC vierge)
 
-## Utilisation (exe)
+Télécharger **`Lumino-Setup-2.0.0.exe`** depuis les [Releases GitHub](https://github.com/yoyo1306/Lumino/releases) et lancer l’installateur :
 
-1. Lance `Lumino.exe` (ou `lumino.bat`), choisis couleur + luminosité,
-   **Appliquer**. En statique, le GPU et la carte mère restent gravés.
-   Un effet (arc-en-ciel, vague, pulsation, etc.) est joué en même temps
-   sur les trois par `corsair_keep.py`, déjà là parce que le hub oublie
-   sa couleur. iCUE doit rester fermé.
-2. `installer_demarrage.bat` : au démarrage Windows, `Lumino.exe --boot`
-   réapplique le statique GPU + carte mère, puis relance le fond
-   (il reprend l'effet s'il y en a un).
+- Installe `Lumino.exe` dans `C:\Program Files\Lumino` (runtime `.NET 10` et `WinUI 3` embarqués).
+- Place l’icône directement à la racine du **Menu Démarrer** (sans sous-dossier ni raccourci Désinstaller ; désinstallation propre via **Paramètres Windows → Applications**).
+- Propose un raccourci Bureau optionnel, le réappliquage automatique au démarrage de Windows (`--boot --delay 10`) et l’ajout optionnel au `PATH` (décoché par défaut).
+- Arrête proprement toute instance active lors d’une mise à jour et préserve `config.json`.
 
-`config.json` garde le dernier choix (+ taille de fenêtre `win_geo`).
-`Lumino.exe --boot --delay 10` = mode démarrage sans fenêtre.
+Les réglages (`config.json`, `lumino.log`, `lcd_media/`) sont stockés dans `%LOCALAPPDATA%\Lumino\` lorsqu’installé dans `Program Files`, ou directement dans le dossier de l’exécutable en mode portable.
 
-## Ambiglow (Philips Evnia 27M2N8500)
+## Périphériques & fonctionnalités
 
-Page **Ambiglow** : modes, couleurs, luminosité et vitesse du menu OSD,
-envoyés par le câble vidéo. Le câble USB n'est pas nécessaire pour ces réglages.
+| Périphérique | Protocole natif | Fonctions |
+|---|---|---|
+| **Tout** | Synchronisé | Même couleur, luminosité, effet et vitesse sur tous les appareils en un clic. |
+| **GPU** (*Gigabyte RTX 5080 Blackwell*) | `nvapi64.dll` I2C Ex (`0x75`) | 6 zones matérielles, gravage statique, mode direct, vague matérielle et sonde température GPU. |
+| **Carte mère** (*ASUS Aura USB*) | USB HID (`0B05:19AF`) | LEDs fixes en statique persistant et animations directes (carte mère + headers ARGB). |
+| **Waterblock** (*Corsair iCUE LINK*) | USB HID (`1B1C:0C3F`, `0xFF42`) | Pompe Titan (20 LEDs) + anneau LCD (24 LEDs), maintenu en fond sans iCUE. |
+| **Ventilos** (*2× Corsair RX*) | USB HID (`1B1C:0C3F`) | Même effet que le waterblock, couleur et luminosité réglées séparément. |
+| **Ambiglow** (*Philips Evnia 27M2N8500*) | DisplayPort DDC (`NvAPI`) + USB WinUSB (`0CF2:A201`) | 8 modes OSD, 14 couleurs, 3 luminosités et 3 vitesses appliqués immédiatement au clic + état USB ENE. |
+| **Écran LCD** (*Corsair Elite / LINK Titan*) | USB HID (`0C4E`, paquets 1024 o) | Image fixe, **GIF animé** avec aperçu circulaire temps réel, zoom (`25–200 %`), luminosité (`0–100 %`), mode **Température GPU** et retour au fond matériel. |
 
-Les couleurs sont grisées pour Désactivé, Suivre la vidéo et Suivre l'audio.
-La vitesse n'apparaît que pour Changement de couleur, Onde de couleur,
-Respiration des couleurs et Nuit étoilée.
+### Effets & interface Windows 11
+- **7 effets** : `Statique`, `Arc-en-ciel`, `Vague arc-en-ciel`, `Vague couleur`, `Pulsation`, `Ondulation`, `Température` (échelle 30–82 °C), vitesse `1` à `10`, 13 pastilles prédéfinies (palette Ambiglow), sélecteur de couleur natif et saisie `#RRGGBB`.
+- **Direction artistique Windows 11** : fond **Mica**, barre de titre personnalisée, thème **Clair / Sombre** mémorisé, instance unique, tiroir **Options** intégré (démarrage Windows, gestion du processus de fond, bascule LCD Température, dossier de données et journal `lumino.log`).
 
-Les pastilles de **Tout** suivent cette palette, sans l'arc-en-ciel.
-Appliquer envoie la même teinte au PC et l'entrée correspondante à l'écran,
-sans changer le mode Ambiglow. Le mode de l'écran doit accepter une couleur.
-
-## Construire l'exe
+## Ligne de commande (CLI sans interface)
 
 ```powershell
-pip install pyinstaller hidapi pillow
-pyinstaller --noconfirm --clean --onefile --windowed --name Lumino --icon lumino.ico --add-data "lumino.ico;." --hidden-import hid --hidden-import ambiglow --hidden-import apply_boot --hidden-import blackwell --hidden-import nvapi --hidden-import aura --hidden-import corsair_link --hidden-import corsair_keep --hidden-import effects lumino_gui.py
-copy dist\Lumino.exe Lumino.exe
+Lumino.exe --boot --delay 10   # Réapplique la config sauvegardée au démarrage et lance le fond
+Lumino.exe --boot --check      # Vérifie config.json sans rien appliquer
+Lumino.exe --corsair-keepalive # Démarre le processus de fond Corsair / Sync / LCD
+Lumino.exe --corsair-stop      # Arrête proprement le fond (GPU et CM reviennent au statique)
 ```
 
-Sans exe : `python lumino_gui.py` (dépendance : `hidapi`).
+## Architecture des sources
 
-## Fichiers
+```text
+lumino\
+    src\
+        Lumino.slnx                  solution .NET 10 (x64)
+        Lumino.Core\                 NvAPI, Blackwell GPU, ASUS Aura, Corsair LINK/LCD, Ambiglow DDC/WinUSB, effets, keepalive, boot, AppPaths
+        Lumino.App\                  interface WinUI 3 (Mica, Options intégrées, aperçu LED & LCD circulaire)
+    installer\
+        Lumino.iss                   script Inno Setup 6 (Lumino-Setup-2.0.0.exe)
+    build.ps1                        publie en self-contained win-x64 et compile l’installateur
+    lumino.ico                       icône de l’application
+    apercu.png                       aperçu de l’interface Windows 11
+    legacy\                          archive des anciens scripts Python v1.2.2
+    CHANGELOG.md                     historique des versions
+```
 
-- `ambiglow.py` — Philips Evnia 27M2N8500, menu OSD par DisplayPort
-- `lumino_gui.py` — app bureau tkinter (GPU + CM + Corsair LINK + Ambiglow, `--boot` inclus,
-  `--corsair-keepalive` / `--corsair-stop` pour le fond Corsair). Pas de serveur.
-- `apply_boot.py` — ré-applique `config.json` au boot (retry driver/USB) + démarre le keepalive Corsair
-- `blackwell.py` — protocole Fusion2 Blackwell (`0x75`, paquets 64 o)
-- `aura.py` — backend ASUS Aura USB (CM persistée)
-- `corsair_link.py` — backend Hub iCUE LINK (`1B1C:0C3F`, layout [pompe 20][anneau 24][RX 8][RX 8], réf OpenRGB GPL-2.0)
-- `corsair_keep.py` — keepalive/animateur de fond (statique : renvoi
-  toutes les 4 s ; animés : environ 5 img/s ; suit `corsair_last` en live,
-  verrou `corsair_keepalive.lock`)
-- `effects.py` — presets style iCUE : Statique, Arc-en-ciel, Vague
-  arc-en-ciel, Vague couleur, Pulsation, Ondulation, Température
-  (sonde GPU). La luminosité 0–100 % s'applique à tous. Non reproduits
-  (2e couleur requise) : Dégradé, Changement couleur.
+## Recompiler
 
-## Trio Corsair sans iCUE (Titan 240 LCD + 2x RX, Hub fw v4.1.656)
+Prérequis de développement : **SDK .NET 10** (`win-x64`) et **Inno Setup 6** (`winget install JRSoftware.InnoSetup`).
 
-1. Dans iCUE (une fois pour toutes) : figer l'image LCD en hardware
-   (Device Memory Mode) + régler courbe ventilos/pompe + couleur de base
-   en Device Memory Mode (fallback). Écran live : bouton **Écran LCD**
-   (température GPU). HydroScreen
-   (https://github.com/UDPSendToFailed/HydroScreen) ne doit pas tourner en même temps.
-2. Fermer iCUE + désactiver son autostart (fait : clé HKLM Run supprimée,
-   backup dans `%TEMP%\opencode\run_hklm_backup.reg`).
-3. Lumino > Appliquer Corsair : sauve + live + démarre le keepalive.
-   Le Hub retombe en hard sans refresh, d'où le fond permanent.
-- `nvapi.py` — wrapper ctypes NvAPI Ex (I2C port GPU 1)
-- `scan.py` — diagnostic détection (lecture seule)
-- `lumino.ico` / `lumino.png` — icône (`make_icon.py` pour la régénérer)
-- `config.example.json` — config de départ
-- `gigabyte.py`, `gv_official.py`, `trace_gcc.py`, … — outils de reverse
-  (hors app, conservés pour référence). Le site web a été retiré.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1
+```
 
-## Protocole (référence OpenRGB, GPL-2.0)
-
-- Adresse `0x75`, blocs 64 octets sans registre.
-- Sonde : write `[0x10,0x01,0...]` → read 4 o `[0x01,0x01|0x02,0x01,*]`.
-- Static par zone hw 0..5 : `[0x12,0x01,0x01,speed,brightness,R,G,B,0x00,zone,0x00,...]`
-  brightness `0x01..0x0A`. Pause ~120 ms entre zones.
-- Save : `[0x13,0x01,0...]`.
+Le script publie `Lumino.exe` (`Release`, `win-x64`, `self-contained`, `WindowsAppSDKSelfContained=true`) dans `publish\`, nettoie les langues satellites inutiles, copie les ressources et génère `dist\Lumino-Setup-2.0.0.exe`.

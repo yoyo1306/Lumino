@@ -1,24 +1,27 @@
-# Python
+# .NET / WinUI 3 / Inno Setup
+bin/
+obj/
+publish/
+dist/
+.vs/
+*.user
+*.exe
+
+# Python / Legacy
 __pycache__/
 *.pyc
 .venv/
-
-# PyInstaller
 build/
-dist/
 *.spec
-Lumino.exe
 LuminoDbg*
-
-# Lumino local (couleurs perso + logs, pas dans git)
-config.json
-lumino.log
-lcd_media/
-apply_watch.json
-corsair_keepalive.lock
-corsair_keepalive.stop
-sync_idle.txt
-hw_apply.lock
-
-# Restes du reverse GCC (33 Mo de DLL, inutiles au quotidien)
 vendor/
+
+# Lumino local (config perso, médias LCD, logs et verrous)
+config.json
+lcd_media/
+*.log
+*.lock
+corsair_keepalive.stop
+apply_watch.json
+sync_idle.txt
+*.tmp
